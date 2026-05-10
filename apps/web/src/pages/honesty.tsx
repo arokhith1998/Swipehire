@@ -9,6 +9,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '@/lib/queryClient';
 
 interface HonestyMetrics {
   generatedAt: string;
@@ -39,7 +40,7 @@ export default function HonestyDashboard() {
   const { data, isLoading, error } = useQuery<HonestyMetrics>({
     queryKey: ['honesty-metrics'],
     queryFn: async () => {
-      const r = await fetch('/api/honesty');
+      const r = await apiFetch('/api/honesty');
       if (!r.ok) throw new Error('Failed to load metrics');
       return r.json();
     },

@@ -12,6 +12,20 @@ function url(path: string): string {
   return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+/**
+ * Drop-in replacement for `fetch` that:
+ *  - Prefixes /api/* paths with VITE_API_URL (so prod hits api.swipehire.io)
+ *  - Always sends cookies (credentials: include) for cross-subdomain auth
+ *
+ * Use this anywhere a page used to call `fetch("/api/...")` directly.
+ */
+export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
+  return fetch(url(input), {
+    ...init,
+    credentials: "include",
+  });
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
