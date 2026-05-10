@@ -26,6 +26,7 @@ import { authRouter, attachUserMiddleware } from './routers/v2/auth.js';
 import { jobsRouter } from './routers/v2/jobs.js';
 import { profileRouter } from './routers/v2/profile.js';
 import { dashboardRouter } from './routers/v2/dashboard.js';
+import { resumeRouter } from './routers/v2/resume.js';
 import { db } from '@swipehire/db';
 import { sql } from 'drizzle-orm';
 
@@ -142,6 +143,7 @@ export function createApp(): Express {
   app.use(authRouter);
   app.use(jobsRouter);
   app.use(profileRouter);
+  app.use(resumeRouter);
   app.use(dashboardRouter);
   app.use(honestyRouter);
 

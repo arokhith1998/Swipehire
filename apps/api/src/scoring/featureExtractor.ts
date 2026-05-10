@@ -46,10 +46,22 @@ export async function extractFeatures(user: ScoringUser, job: ScoringJob): Promi
   // before the full DB integration lands.
 
   const workAuth: WorkAuth | null = user.workAuthV2 ?? null;
-  const needsSponsorship = !!workAuth && !['us_citizen', 'green_card', 'asylum_ead'].includes(workAuth.status);
+  const needsSponsorship = !!workAuth
+    && !['us_citizen', 'green_card', 'asylum_ead', 'citizen', 'permanent_resident'].includes(workAuth.status);
 
   const resumeText = user.originalResumeContent ?? JSON.stringify(user.resumeData ?? {});
   const jdText = `${job.title}\n\n${job.description}\n\n${(job.requirements ?? []).join('\n')}`;
+
+  // Multi-location: preferredLocation can be a comma-separated list like
+  // "San Francisco, CA | NYC | Remote" or "Anywhere in US, Remote".
+  // Split on `|` (chip separator), `;`, or `\n`. Don't split on `,` since that's used inside city names.
+  const userLocStrings = (user.preferredLocation ?? '')
+    .split(/[|;\n]+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  const userMetros = userLocStrings
+    .map(extractMetro)
+    .filter((m): m is string => Boolean(m));
 
   return {
     user,
@@ -59,10 +71,10 @@ export async function extractFeatures(user: ScoringUser, job: ScoringJob): Promi
     userTargetSocs: user.targetSocs ?? [],
     userTargetRoleFamilies: user.targetRoleFamilies ?? [],
     jobSocCode: job.socCode ?? null,
-    jobRoleFamily: null, // resolved via roleFamilyId join in v2.1
+    jobRoleFamily: null,
     roleFamilyId: job.roleFamilyId ?? null,
     jobMetro: extractMetro(job.location),
-    userMetros: user.preferredLocation ? [extractMetro(user.preferredLocation) ?? user.preferredLocation] : [],
+    userMetros,
     resumeText,
     jdText,
     parsedRequirements: job.requirements ?? [],
@@ -77,14 +89,22 @@ export async function extractFeatures(user: ScoringUser, job: ScoringJob): Promi
 function extractMetro(location: string): string | null {
   if (!location) return null;
   const norm = location.toLowerCase().trim();
+  // "Anywhere in US" wildcard — matches any US-located job.
+  if (/anywhere\s+in\s+(the\s+)?(us|usa|united\s+states)/i.test(norm)) return 'Anywhere in US';
+  if (norm === 'usa' || norm === 'us' || norm === 'united states') return 'Anywhere in US';
   // Quick win for common patterns
   if (norm.includes('san francisco') || norm.includes('bay area') || norm.includes('sf,')) return 'SF Bay Area';
-  if (norm.includes('new york') || norm.includes('nyc') || norm.includes('manhattan')) return 'NYC Metro';
+  if (norm.includes('new york') || norm.includes('nyc') || norm.includes('manhattan') || norm.includes('brooklyn')) return 'NYC Metro';
   if (norm.includes('los angeles') || norm.includes('la,')) return 'LA Metro';
   if (norm.includes('seattle')) return 'Seattle Metro';
   if (norm.includes('austin')) return 'Austin Metro';
   if (norm.includes('boston')) return 'Boston Metro';
   if (norm.includes('chicago')) return 'Chicago Metro';
+  if (norm.includes('washington') || norm.includes(' dc') || norm === 'dc') return 'DC Metro';
+  if (norm.includes('atlanta')) return 'Atlanta Metro';
+  if (norm.includes('denver')) return 'Denver Metro';
+  if (norm.includes('miami')) return 'Miami Metro';
+  if (norm.includes('dallas') || norm.includes('houston') || norm.includes('texas')) return 'Texas Metro';
   if (norm.includes('remote') || norm.includes('anywhere')) return 'Remote';
   return location;
 }

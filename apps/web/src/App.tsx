@@ -46,16 +46,15 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
 
   const user = authResponse.user;
 
-  // Check if user needs onboarding (missing required profile data)
-  const needsOnboarding = !user.targetJobTitle || !user.preferredLocation || !user.visaStatus;
-  const needsProfileCompletion = !user.isProfileComplete && (user.targetJobTitle && user.preferredLocation && user.visaStatus);
-  
+  // Onboarding gating: respect explicit isProfileComplete flag set by Onboarding's
+  // "Skip setup" / "Finish" buttons. A user who skips is shown the swipe page
+  // immediately — they can fill profile fields later from /profile.
+  const profileMarkedComplete = !!user.isProfileComplete;
+  const hasMinimumProfile = !!user.targetJobTitle;
+  const needsOnboarding = !profileMarkedComplete && !hasMinimumProfile;
+
   if (needsOnboarding && window.location.pathname !== '/onboarding') {
     return <Onboarding />;
-  }
-  
-  if (needsProfileCompletion && window.location.pathname !== '/profile') {
-    return <Profile />;
   }
 
   return <>{children}</>;

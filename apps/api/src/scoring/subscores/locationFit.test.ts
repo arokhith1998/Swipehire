@@ -64,13 +64,41 @@ describe('locationFit()', () => {
     expect(result.confidence).toBe(0.4);
   });
 
-  it('returns 0.85 for hybrid job when user is ok with hybrid and in same metro', async () => {
+  it('returns 0.92 for hybrid job when user is ok with hybrid and in same metro', async () => {
     const result = await locationFit(makeFeatures({
       user: { id: 1, remotePreference: 'hybrid' } as any,
       job: { id: 1, isRemote: false, isHybrid: true } as any,
       jobMetro: 'SF Bay Area',
       userMetros: ['SF Bay Area'],
     }));
-    expect(result.value).toBe(0.85);
+    expect(result.value).toBe(0.92);
+  });
+
+  it('handles "Anywhere in US" wildcard for any US metro', async () => {
+    const result = await locationFit(makeFeatures({
+      user: { id: 1, remotePreference: 'remote,hybrid,onsite' } as any,
+      jobMetro: 'Austin Metro',
+      userMetros: ['Anywhere in US'],
+    }));
+    expect(result.value).toBe(1.0);
+  });
+
+  it('handles multi-metro user preferences', async () => {
+    const result = await locationFit(makeFeatures({
+      user: { id: 1, remotePreference: 'hybrid,onsite' } as any,
+      jobMetro: 'NYC Metro',
+      userMetros: ['SF Bay Area', 'NYC Metro', 'Austin Metro'],
+    }));
+    expect(result.value).toBe(1.0);
+  });
+
+  it('multi-mode preference: remote+hybrid both accepted', async () => {
+    const result = await locationFit(makeFeatures({
+      user: { id: 1, remotePreference: 'remote,hybrid' } as any,
+      job: { id: 1, isRemote: true, isHybrid: false } as any,
+      jobMetro: 'Remote',
+      userMetros: ['SF Bay Area', 'Remote'],
+    }));
+    expect(result.value).toBe(1.0);
   });
 });

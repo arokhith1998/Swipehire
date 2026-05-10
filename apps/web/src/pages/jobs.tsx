@@ -123,11 +123,11 @@ export default function Jobs() {
                   </span>
                 </span>
               </div>
-              {user.visaStatus && user.visaStatus !== 'citizen' && (
+              {user.visaStatus && !['us_citizen', 'green_card', 'asylum_ead', 'citizen'].includes(user.visaStatus) && (
                 <div className="flex items-center space-x-1 bg-secondary/10 px-2 py-1 rounded-full">
                   <Globe className="w-3 h-3 text-secondary" />
                   <span className="text-xs font-medium text-secondary">
-                    {user.visaStatus.toUpperCase()}
+                    {user.visaStatus.replace(/_/g, '-').toUpperCase()}
                   </span>
                 </div>
               )}
@@ -137,8 +137,11 @@ export default function Jobs() {
                 📍 {user.preferredLocation || 'Flexible location'}
               </span>
               <span>
-                🏠 {user.remotePreference === 'remote' ? 'Remote OK' : 
-                     user.remotePreference === 'hybrid' ? 'Hybrid OK' : 'On-site'}
+                🏠 {(user.remotePreference || 'any').split(/[,|]+/).map((m: string) =>
+                      m.trim() === 'remote' ? 'Remote' :
+                      m.trim() === 'hybrid' ? 'Hybrid' :
+                      m.trim() === 'onsite' ? 'On-site' : m
+                    ).join(' / ')}
               </span>
             </div>
           </div>
