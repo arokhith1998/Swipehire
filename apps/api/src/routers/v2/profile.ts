@@ -32,7 +32,14 @@ const profilePatchSchema = z.object({
   expectedSalary: z.string().max(80).optional(),
   bio: z.string().max(2000).optional(),
   education: z.string().max(2000).optional(),
-  remotePreference: z.enum(['remote', 'hybrid', 'onsite']).optional(),
+  // Accepts a single value ('remote') or comma-separated multi ('remote,hybrid').
+  remotePreference: z.string()
+    .max(40)
+    .refine(
+      (s) => s.split(',').every(p => ['remote', 'hybrid', 'onsite'].includes(p.trim())),
+      { message: "Each value must be one of: remote, hybrid, onsite" }
+    )
+    .optional(),
   skills: z.array(z.string().max(80)).max(200).optional(),
   isProfileComplete: z.boolean().optional(),
 });
