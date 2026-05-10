@@ -18,8 +18,16 @@
 
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
+import multer from 'multer';
 
 export const resumeRouter: Router = Router();
+
+// In-memory upload, capped at 10 MB. Files are processed and discarded;
+// we never persist the binary, only the extracted text fields the user reviews.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+});
 
 const COMMON_SKILLS = [
   // Languages
@@ -116,6 +124,23 @@ const parseSchema = z.object({
   text: z.string().min(50, 'Need at least ~50 characters of resume content').max(50000),
 });
 
+function buildExtractionResponse(text: string) {
+  const skills = extractSkills(text);
+  const experience = extractExperience(text);
+  const targetJobTitle = extractJobTitle(text);
+  const detectedLocation = extractLocation(text);
+  return {
+    extracted: { skills, experience, targetJobTitle, detectedLocation },
+    confidence: {
+      skills: skills.length >= 3 ? 'high' : skills.length >= 1 ? 'medium' : 'low',
+      experience: experience ? 'medium' : 'low',
+      targetJobTitle: targetJobTitle ? 'medium' : 'low',
+      detectedLocation: detectedLocation ? 'medium' : 'low',
+    },
+    rawTextLength: text.length,
+  };
+}
+
 resumeRouter.post('/api/profile/parse-resume', (req: Request, res: Response) => {
   const userId = req.session?.userId;
   if (!userId) {
@@ -129,25 +154,64 @@ resumeRouter.post('/api/profile/parse-resume', (req: Request, res: Response) => 
     return;
   }
 
-  const text = parsed.data.text;
-  const skills = extractSkills(text);
-  const experience = extractExperience(text);
-  const targetJobTitle = extractJobTitle(text);
-  const detectedLocation = extractLocation(text);
-
-  res.json({
-    extracted: {
-      skills,
-      experience,
-      targetJobTitle,
-      detectedLocation,
-    },
-    confidence: {
-      skills: skills.length >= 3 ? 'high' : skills.length >= 1 ? 'medium' : 'low',
-      experience: experience ? 'medium' : 'low',
-      targetJobTitle: targetJobTitle ? 'medium' : 'low',
-      detectedLocation: detectedLocation ? 'medium' : 'low',
-    },
-    rawTextLength: text.length,
-  });
+  res.json(buildExtractionResponse(parsed.data.text));
 });
+
+/**
+ * PDF / DOCX upload variant. Same response shape as parse-resume.
+ * The file is processed in memory and never persisted.
+ *
+ * Accepts multipart/form-data with field "resume" or "file".
+ */
+resumeRouter.post(
+  '/api/profile/parse-resume-file',
+  (req, res, next) => {
+    if (!req.session?.userId) {
+      res.status(401).json({ error: 'not_authenticated' });
+      return;
+    }
+    next();
+  },
+  upload.single('resume'),
+  async (req: Request, res: Response) => {
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: 'no_file', message: 'Attach a PDF or DOCX file under field name "resume"' });
+      return;
+    }
+
+    let text: string;
+    try {
+      const name = file.originalname.toLowerCase();
+      if (name.endsWith('.pdf') || file.mimetype === 'application/pdf') {
+        // pdf-parse v2 ships an async API and ESM-friendly default export.
+        const mod: any = await import('pdf-parse');
+        const pdfParse = (mod.default ?? mod) as (b: Buffer) => Promise<{ text: string }>;
+        const result = await pdfParse(file.buffer);
+        text = result.text ?? '';
+      } else if (name.endsWith('.docx') || file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        const mammoth = (await import('mammoth')) as any;
+        const result = await mammoth.extractRawText({ buffer: file.buffer });
+        text = result.value ?? '';
+      } else if (name.endsWith('.txt') || file.mimetype === 'text/plain') {
+        text = file.buffer.toString('utf8');
+      } else {
+        res.status(400).json({ error: 'unsupported_format', message: 'Use PDF, DOCX, or TXT' });
+        return;
+      }
+    } catch (err: any) {
+      res.status(422).json({ error: 'parse_failed', message: err.message?.slice(0, 200) ?? 'could not extract text' });
+      return;
+    }
+
+    if (text.trim().length < 50) {
+      res.status(422).json({
+        error: 'too_short',
+        message: 'Extracted only ' + text.trim().length + ' characters — file may be image-only or empty',
+      });
+      return;
+    }
+
+    res.json(buildExtractionResponse(text));
+  }
+);

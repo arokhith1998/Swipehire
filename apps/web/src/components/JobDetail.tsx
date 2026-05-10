@@ -7,14 +7,14 @@
  *   - inline expansion in the swipe interface (future)
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, getQueryFn } from "@/lib/api";
 import {
   MapPin, Building, Clock, Heart, Bookmark, ExternalLink,
-  CheckCircle, AlertTriangle, TrendingUp, Globe, DollarSign, ArrowLeft
+  CheckCircle, AlertTriangle, Globe, DollarSign, ArrowLeft, Newspaper
 } from "lucide-react";
 
 const SUBSCORE_LABELS: Record<string, string> = {
@@ -280,25 +280,92 @@ export function JobDetail({ job, onBack }: Props) {
             </Card>
           )}
 
-          {/* Company quick info */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="font-semibold text-gray-900 mb-2">About {job.company}</h2>
-              <p className="text-sm text-gray-600">
-                Live company news + funding info coming soon.
-                {job.externalUrl && (
-                  <> In the meantime, visit{" "}
-                    <a href={job.externalUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-0.5">
-                      the listing <ExternalLink className="w-3 h-3" />
-                    </a>
-                    {" "}for the latest details.
-                  </>
-                )}
-              </p>
-            </CardContent>
-          </Card>
+          <CompanyIntelCard company={job.company} />
         </div>
       </div>
     </div>
+  );
+}
+
+function CompanyIntelCard({ company }: { company: string }) {
+  const { data, isLoading } = useQuery<any>({
+    queryKey: [`/api/companies/${encodeURIComponent(company)}/intel`],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    staleTime: 6 * 60 * 60 * 1000,    // 6h client-side cache too
+    enabled: !!company,
+  });
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <h2 className="font-semibold text-gray-900 mb-3">About {company}</h2>
+
+        {isLoading && <p className="text-xs text-gray-400">Loading…</p>}
+
+        {data?.wiki && (
+          <div className="mb-4">
+            <div className="flex items-start gap-3">
+              {data.wiki.thumbnailUrl && (
+                <img
+                  src={data.wiki.thumbnailUrl}
+                  alt=""
+                  className="w-16 h-16 rounded object-cover shrink-0 border border-gray-200"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                {data.wiki.description && (
+                  <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">{data.wiki.description}</p>
+                )}
+                {data.wiki.extract && (
+                  <p className="text-sm text-gray-700 leading-snug line-clamp-4">{data.wiki.extract}</p>
+                )}
+                {data.wiki.pageUrl && (
+                  <a
+                    href={data.wiki.pageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline mt-1 inline-flex items-center gap-0.5"
+                  >
+                    Wikipedia <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {data?.news?.length > 0 && (
+          <div className={data.wiki ? "border-t border-gray-100 pt-3" : ""}>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Newspaper className="w-3.5 h-3.5 text-gray-500" />
+              <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Recent news</h3>
+            </div>
+            <ul className="space-y-2">
+              {data.news.slice(0, 4).map((n: any, i: number) => (
+                <li key={i}>
+                  <a
+                    href={n.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-gray-700 hover:text-primary leading-snug line-clamp-2 block"
+                  >
+                    {n.title}
+                  </a>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {n.source && <span>{n.source}</span>}
+                    {n.source && n.publishedAt && <span> · </span>}
+                    {n.publishedAt && <span>{new Date(n.publishedAt).toLocaleDateString()}</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {!isLoading && !data?.wiki && !data?.news?.length && (
+          <p className="text-xs text-gray-500">No public profile or recent news found for "{company}".</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }

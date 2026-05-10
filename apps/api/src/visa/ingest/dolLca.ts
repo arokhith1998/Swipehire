@@ -2,10 +2,16 @@
  * DOL OFLC LCA disclosure data ingest.
  *
  * Source: https://www.dol.gov/agencies/eta/foreign-labor/performance
- * Cadence: quarterly (per user decision in 03_architecture.md §3.4).
- * File format: XLSX, ~500MB, ~250k rows per quarter.
+ * Cadence: quarterly. File format: XLSX, 100–500 MB, ~250k rows per quarter.
  *
- * Ingestion runs in the worker pool, not the API. ~10 min per quarter file.
+ * Run via:
+ *   POST /api/admin/ingest/dol  { url, fiscalQuarter, dryRun? }
+ *
+ * The worker process should run this — it's slow (5–15 min) and memory-hungry
+ * on the parsing step. The api can also call it directly for small/test files.
+ *
+ * After ingest, runs the employer_visa_stats rollup so the visa subsystem has
+ * fast per-employer lookups.
  */
 
 import { db, schema } from '@swipehire/db';
@@ -16,31 +22,49 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 
-const OFLC_BASE = 'https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/';
-
 export interface DolIngestOptions {
-  fiscalQuarter: string;          // 'FY26Q1' etc.
-  url?: string;                   // override URL for testing
-  dryRun?: boolean;               // parse but don't insert
+  url: string;                       // direct URL to the .xlsx file
+  fiscalQuarter: string;             // 'FY26Q1' label for tracking
+  dryRun?: boolean;
+  /** Limit rows ingested for testing. */
+  maxRows?: number;
 }
 
-export async function ingestDolLca(options: DolIngestOptions): Promise<{ rowsInserted: number; skipped: number }> {
+export interface DolIngestResult {
+  rowsParsed: number;
+  rowsInserted: number;
+  rowsSkipped: number;
+  uniqueEmployers: number;
+  employerStatsUpserted: number;
+  durationMs: number;
+}
+
+export async function ingestDolLca(options: DolIngestOptions): Promise<DolIngestResult> {
+  const t0 = Date.now();
   const runId = await startRun(options.fiscalQuarter);
 
   try {
-    const url = options.url ?? buildUrl(options.fiscalQuarter);
-    const tmpFile = path.join(tmpdir(), `lca_${options.fiscalQuarter}.xlsx`);
+    const tmpFile = path.join(tmpdir(), `lca_${options.fiscalQuarter}_${Date.now()}.xlsx`);
+    console.log(`[dolLca] downloading ${options.url} → ${tmpFile}`);
+    await downloadFile(options.url, tmpFile);
 
-    await downloadFile(url, tmpFile);
-    const records = await parseXlsx(tmpFile);
+    console.log(`[dolLca] parsing XLSX...`);
+    const records = await parseXlsx(tmpFile, options.maxRows);
+    console.log(`[dolLca] parsed ${records.length} rows`);
 
     if (options.dryRun) {
       await endRun(runId, 'success', records.length, 0);
-      return { rowsInserted: records.length, skipped: 0 };
+      return {
+        rowsParsed: records.length,
+        rowsInserted: 0,
+        rowsSkipped: 0,
+        uniqueEmployers: countDistinct(records, r => r.fein),
+        employerStatsUpserted: 0,
+        durationMs: Date.now() - t0,
+      };
     }
 
     let inserted = 0, skipped = 0;
-    // Batch insert in chunks of 500
     for (let i = 0; i < records.length; i += 500) {
       const chunk = records.slice(i, i + 500);
       try {
@@ -48,42 +72,195 @@ export async function ingestDolLca(options: DolIngestOptions): Promise<{ rowsIns
         inserted += chunk.length;
       } catch (err) {
         skipped += chunk.length;
-        console.warn(`[dolLca] chunk ${i} failed:`, err);
+        console.warn(`[dolLca] chunk ${i} failed:`, (err as any).message?.slice(0, 200));
       }
     }
+    console.log(`[dolLca] inserted ${inserted} rows (skipped ${skipped})`);
 
-    // Trigger rollup recompute
-    await db.execute(sql`SELECT * FROM visa.lca_records LIMIT 1`); // placeholder; queue real job
+    console.log(`[dolLca] rolling up employer_visa_stats...`);
+    const statsCount = await rollupEmployerStats();
+    console.log(`[dolLca] upserted stats for ${statsCount} (employer, soc) groups`);
 
     await endRun(runId, 'success', inserted, skipped);
-    return { rowsInserted: inserted, skipped };
-  } catch (err) {
-    await endRun(runId, 'failure', 0, 0, String(err));
+    return {
+      rowsParsed: records.length,
+      rowsInserted: inserted,
+      rowsSkipped: skipped,
+      uniqueEmployers: countDistinct(records, r => r.fein),
+      employerStatsUpserted: statsCount,
+      durationMs: Date.now() - t0,
+    };
+  } catch (err: any) {
+    await endRun(runId, 'failure', 0, 0, err.message?.slice(0, 500) ?? String(err));
     throw err;
   }
 }
 
-function buildUrl(quarter: string): string {
-  // OFLC URL convention varies year to year. v2.1: scrape the listing page to find the file.
-  // For now: best-guess pattern that works for FY24+.
-  return `${OFLC_BASE}LCA_Disclosure_Data_${quarter}.xlsx`;
-}
-
 async function downloadFile(url: string, dest: string): Promise<void> {
-  const { body } = await request(url, { method: 'GET' });
+  const { body, statusCode } = await request(url, { method: 'GET' });
+  if (statusCode >= 400) throw new Error(`HTTP ${statusCode} fetching ${url}`);
   await pipeline(body as any, createWriteStream(dest));
 }
 
 /**
- * Parse OFLC LCA XLSX. Field names vary slightly by quarter; this handles
- * the FY23+ schema. v2.1: detect schema version from headers.
+ * Parse OFLC LCA XLSX. Field names normalized for FY23+.
+ * Streaming parser to avoid loading the full file into memory.
  */
-async function parseXlsx(filePath: string): Promise<any[]> {
-  // TODO(v2.1): use exceljs or sheetjs to parse the XLSX.
-  // The OFLC file has ~70 columns; we extract ~15.
-  // For now, return empty array so the pipeline is wireable end-to-end.
-  console.warn('[dolLca] XLSX parsing not yet implemented — needs exceljs in deps');
-  return [];
+async function parseXlsx(filePath: string, maxRows?: number): Promise<any[]> {
+  const ExcelJSMod = await import('exceljs');
+  const ExcelJS: any = (ExcelJSMod as any).default ?? ExcelJSMod;
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+  const ws = workbook.worksheets[0];
+  if (!ws) throw new Error('no worksheet found in XLSX');
+
+  // Read header row to map column names -> indices.
+  const headerRow = ws.getRow(1);
+  const headers: Record<string, number> = {};
+  headerRow.eachCell({ includeEmpty: false }, (cell: any, col: number) => {
+    const v = String(cell.value ?? '').toUpperCase().trim();
+    headers[v] = col;
+  });
+
+  // Required columns per FY23+ schema.
+  const need = (variants: string[]): number | null => {
+    for (const v of variants) {
+      if (headers[v] != null) return headers[v];
+    }
+    return null;
+  };
+  const cols = {
+    fein: need(['EMPLOYER_FEIN', 'FEIN']),
+    employer_name: need(['EMPLOYER_NAME']),
+    soc_code: need(['SOC_CODE']),
+    job_title: need(['JOB_TITLE']),
+    visa_class: need(['VISA_CLASS']),
+    case_status: need(['CASE_STATUS']),
+    decision_date: need(['DECISION_DATE']),
+    begin_date: need(['BEGIN_DATE', 'EMPLOYMENT_START_DATE']),
+    end_date: need(['END_DATE', 'EMPLOYMENT_END_DATE']),
+    wage_from: need(['WAGE_RATE_OF_PAY_FROM_1', 'WAGE_RATE_OF_PAY_FROM']),
+    wage_unit: need(['WAGE_UNIT_OF_PAY_1', 'WAGE_UNIT_OF_PAY']),
+    pw: need(['PREVAILING_WAGE_1', 'PREVAILING_WAGE']),
+    pw_level: need(['PW_WAGE_LEVEL_1', 'PW_LEVEL_1', 'PW_LEVEL']),
+    worksite_city: need(['WORKSITE_CITY_1', 'WORKSITE_CITY']),
+    worksite_state: need(['WORKSITE_STATE_1', 'WORKSITE_STATE']),
+    worksite_postal: need(['WORKSITE_POSTAL_CODE_1', 'WORKSITE_POSTAL_CODE']),
+  };
+
+  if (cols.fein == null || cols.employer_name == null || cols.soc_code == null || cols.case_status == null) {
+    throw new Error(
+      'XLSX missing required columns. Found: ' +
+      Object.keys(headers).slice(0, 30).join(', ') + '...'
+    );
+  }
+
+  const records: any[] = [];
+  const rowCount = Math.min(ws.rowCount, maxRows ? maxRows + 1 : Infinity);
+
+  for (let r = 2; r <= rowCount; r++) {
+    const row = ws.getRow(r);
+    const get = (c: number | null) => c == null ? null : cellValue(row.getCell(c));
+    const fein = String(get(cols.fein) ?? '').trim();
+    const employerName = String(get(cols.employer_name) ?? '').trim();
+    if (!fein || !employerName) continue;
+
+    const annualWage = annualizeWage(get(cols.wage_from), get(cols.wage_unit));
+    const annualPw = annualizeWage(get(cols.pw), get(cols.wage_unit));   // PW unit assumed same
+
+    records.push({
+      fein,
+      employerName,
+      socCode: String(get(cols.soc_code) ?? '').trim(),
+      jobTitle: get(cols.job_title) ? String(get(cols.job_title)).trim() : null,
+      visaClass: get(cols.visa_class) ? String(get(cols.visa_class)).trim() : null,
+      decision: String(get(cols.case_status) ?? 'Unknown').trim(),
+      decisionDate: parseDate(get(cols.decision_date)),
+      employmentStartDate: parseDate(get(cols.begin_date)),
+      employmentEndDate: parseDate(get(cols.end_date)),
+      wageOffered: annualWage as any,
+      wageUnit: 'Year',
+      prevailingWage: annualPw as any,
+      pwLevel: get(cols.pw_level) ? String(get(cols.pw_level)).trim() : null,
+      worksiteCity: get(cols.worksite_city) ? String(get(cols.worksite_city)).trim() : null,
+      worksiteState: get(cols.worksite_state) ? String(get(cols.worksite_state)).trim() : null,
+      worksitePostalCode: get(cols.worksite_postal) ? String(get(cols.worksite_postal)).trim() : null,
+    });
+  }
+  return records;
+}
+
+function cellValue(cell: any): any {
+  const v = cell.value;
+  if (v == null) return null;
+  if (typeof v === 'object' && 'result' in v) return v.result;          // formula
+  if (typeof v === 'object' && 'text' in v) return v.text;              // rich text
+  return v;
+}
+
+function parseDate(v: any): Date | null {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** Convert hourly/weekly/etc. wages to annual. */
+function annualizeWage(wage: any, unit: any): number | null {
+  if (!wage) return null;
+  const n = parseFloat(String(wage).replace(/[$,]/g, ''));
+  if (!isFinite(n) || n <= 0) return null;
+  const u = String(unit ?? 'year').toLowerCase();
+  if (u.startsWith('hour')) return Math.round(n * 2080);
+  if (u.startsWith('week')) return Math.round(n * 52);
+  if (u.startsWith('bi-week') || u.startsWith('biweek')) return Math.round(n * 26);
+  if (u.startsWith('month')) return Math.round(n * 12);
+  return Math.round(n);
+}
+
+/**
+ * Rollup raw lca_records into employer_visa_stats per (fein, soc_code).
+ * The visa subsystem reads from this table; without it, lookups would
+ * scan millions of rows.
+ */
+async function rollupEmployerStats(): Promise<number> {
+  const r = await db.execute(sql`
+    INSERT INTO visa.employer_visa_stats (fein, soc_code, visa_class,
+      total_lcas_24mo, certified_count, denied_count, withdrawn_count,
+      median_wage_offered, p25_wage_offered, p75_wage_offered, last_sponsored_at)
+    SELECT
+      fein,
+      soc_code,
+      COALESCE(MAX(visa_class), 'H-1B') AS visa_class,
+      COUNT(*)::int AS total_lcas_24mo,
+      COUNT(*) FILTER (WHERE decision IN ('Certified', 'Certified - Withdrawn'))::int AS certified_count,
+      COUNT(*) FILTER (WHERE decision = 'Denied')::int AS denied_count,
+      COUNT(*) FILTER (WHERE decision = 'Withdrawn')::int AS withdrawn_count,
+      percentile_cont(0.5) WITHIN GROUP (ORDER BY wage_offered) AS median_wage_offered,
+      percentile_cont(0.25) WITHIN GROUP (ORDER BY wage_offered) AS p25_wage_offered,
+      percentile_cont(0.75) WITHIN GROUP (ORDER BY wage_offered) AS p75_wage_offered,
+      MAX(decision_date) AS last_sponsored_at
+    FROM visa.lca_records
+    WHERE decision_date >= NOW() - INTERVAL '24 months'
+      AND fein IS NOT NULL
+      AND soc_code IS NOT NULL
+    GROUP BY fein, soc_code
+    ON CONFLICT (fein, soc_code, visa_class) DO UPDATE SET
+      total_lcas_24mo = EXCLUDED.total_lcas_24mo,
+      certified_count = EXCLUDED.certified_count,
+      denied_count = EXCLUDED.denied_count,
+      withdrawn_count = EXCLUDED.withdrawn_count,
+      median_wage_offered = EXCLUDED.median_wage_offered,
+      p25_wage_offered = EXCLUDED.p25_wage_offered,
+      p75_wage_offered = EXCLUDED.p75_wage_offered,
+      last_sponsored_at = EXCLUDED.last_sponsored_at,
+      updated_at = NOW()
+  `);
+  return r.rowCount ?? 0;
+}
+
+function countDistinct<T>(arr: T[], key: (x: T) => any): number {
+  return new Set(arr.map(key)).size;
 }
 
 async function startRun(quarter: string): Promise<number> {

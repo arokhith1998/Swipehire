@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 import { db } from '@swipehire/db';
 import { ingestAllOrgs, GREENHOUSE_ORGS } from '../../services/greenhouseIngest.js';
+import { ingestDolLca } from '../../visa/ingest/dolLca.js';
 
 export const adminRouter: Router = Router();
 
@@ -59,6 +60,30 @@ adminRouter.post('/api/admin/ingest/greenhouse', requireAdmin, async (req, res) 
       { fetched: 0, inserted: 0, updated: 0, skipped: 0, errors: 0 }
     );
     res.json({ ok: true, ms: Date.now() - t0, orgs, totals, perOrg: results });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message ?? 'ingest failed' });
+  }
+});
+
+const dolSchema = z.object({
+  url: z.string().url(),
+  fiscalQuarter: z.string().min(2).max(20),
+  dryRun: z.boolean().optional(),
+  maxRows: z.number().int().positive().max(500_000).optional(),
+});
+
+adminRouter.post('/api/admin/ingest/dol', requireAdmin, async (req, res) => {
+  const parsed = dolSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+    return;
+  }
+  // This is slow (5–15 min). Railway may time out the HTTP call before it
+  // finishes. The function still completes server-side and inserts data.
+  const t0 = Date.now();
+  try {
+    const result = await ingestDolLca(parsed.data);
+    res.json({ ok: true, ms: Date.now() - t0, ...result });
   } catch (err: any) {
     res.status(500).json({ ok: false, error: err.message ?? 'ingest failed' });
   }

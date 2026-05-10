@@ -22,7 +22,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { SwipeHireLogo } from "@/components/SwipeHireLogo";
-import { Briefcase, MapPin, FileText, Sparkles, X, Check } from "lucide-react";
+import { Briefcase, MapPin, FileText, Sparkles, X, Check, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type LocationOption = { id: string; label: string; isWildcard?: boolean };
@@ -121,45 +121,67 @@ export default function Onboarding() {
     if (user.expectedSalary) setExpectedSalary(user.expectedSalary);
   }, [user]);
 
+  const applyParsed = (data: any) => {
+    const ex = data.extracted;
+    let applied: string[] = [];
+    if (ex.skills?.length) {
+      const merged = Array.from(new Set([...(skills ?? []), ...ex.skills])).slice(0, 50);
+      setSkills(merged);
+      applied.push(`${ex.skills.length} skills`);
+    }
+    if (ex.targetJobTitle && !targetJobTitle) {
+      setTargetJobTitle(ex.targetJobTitle);
+      applied.push('target title');
+    }
+    if (ex.experience && !experience) {
+      setExperience(ex.experience);
+      applied.push('experience level');
+    }
+    if (ex.detectedLocation) {
+      const match = LOCATIONS.find(l => l.id === ex.detectedLocation || l.id.startsWith(ex.detectedLocation.split(',')[0]));
+      if (match) {
+        setSelectedLocations(prev => new Set([...Array.from(prev), match.id]));
+        applied.push(`location: ${match.label}`);
+      }
+    }
+    toast({
+      title: applied.length ? '✨ Auto-filled from resume' : 'Resume processed',
+      description: applied.length
+        ? `Pre-filled ${applied.join(', ')}. Review on the next steps.`
+        : 'No fields detected — fill them in manually below.',
+    });
+  };
+
   const parseResume = useMutation({
     mutationFn: async (text: string) => {
       const r = await apiRequest('POST', '/api/profile/parse-resume', { text });
       return r.json();
     },
-    onSuccess: (data) => {
-      const ex = data.extracted;
-      let applied: string[] = [];
-      if (ex.skills?.length) {
-        // Merge with what's already there.
-        const merged = Array.from(new Set([...(skills ?? []), ...ex.skills])).slice(0, 50);
-        setSkills(merged);
-        applied.push(`${ex.skills.length} skills`);
-      }
-      if (ex.targetJobTitle && !targetJobTitle) {
-        setTargetJobTitle(ex.targetJobTitle);
-        applied.push('target title');
-      }
-      if (ex.experience && !experience) {
-        setExperience(ex.experience);
-        applied.push('experience level');
-      }
-      if (ex.detectedLocation) {
-        // Add detected location to chip selection if it's a known one.
-        const match = LOCATIONS.find(l => l.id === ex.detectedLocation || l.id.startsWith(ex.detectedLocation.split(',')[0]));
-        if (match) {
-          setSelectedLocations(prev => new Set([...Array.from(prev), match.id]));
-          applied.push(`location: ${match.label}`);
-        }
-      }
-      toast({
-        title: applied.length ? '✨ Auto-filled from resume' : 'Resume processed',
-        description: applied.length
-          ? `Pre-filled ${applied.join(', ')}. Review on the next steps.`
-          : 'No fields detected — fill them in manually below.',
-      });
-    },
+    onSuccess: applyParsed,
     onError: () => {
       toast({ title: 'Could not parse', description: 'Skip this and fill in manually.', variant: 'destructive' });
+    },
+  });
+
+  const parseResumeFile = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append('resume', file);
+      const apiBase = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+      const r = await fetch(`${apiBase}/api/profile/parse-resume-file`, {
+        method: 'POST',
+        body: fd,
+        credentials: 'include',
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.message ?? `Upload failed (${r.status})`);
+      }
+      return r.json();
+    },
+    onSuccess: applyParsed,
+    onError: (err: any) => {
+      toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
     },
   });
 
@@ -302,11 +324,47 @@ export default function Onboarding() {
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* File upload (PDF / DOCX / TXT) */}
+                <div>
+                  <label
+                    htmlFor="resume-file"
+                    className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                  >
+                    <Upload className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm text-gray-700">
+                      <span className="font-medium text-primary">Upload resume</span>
+                      {' '}— PDF, DOCX, or TXT (10 MB max)
+                    </span>
+                  </label>
+                  <input
+                    id="resume-file"
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) parseResumeFile.mutate(file);
+                    }}
+                  />
+                  {parseResumeFile.isPending && (
+                    <p className="text-xs text-gray-500 mt-2 text-center">Extracting text from file…</p>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-gray-200" />
+                  </div>
+                  <span className="relative flex justify-center text-xs uppercase tracking-wide bg-white px-3 text-gray-400 mx-auto w-fit">
+                    Or paste
+                  </span>
+                </div>
+
                 <Textarea
                   value={resumeText}
                   onChange={(e) => setResumeText(e.target.value)}
-                  placeholder="Paste resume text (or copy from PDF, LinkedIn, Word doc)..."
-                  className="min-h-[260px] font-mono text-xs"
+                  placeholder="Paste resume text (or copy from LinkedIn, Word doc)..."
+                  className="min-h-[200px] font-mono text-xs"
                 />
                 <div className="flex flex-col-reverse sm:flex-row gap-2">
                   <Button variant="outline" className="sm:flex-1" onClick={goNext}>
@@ -317,10 +375,10 @@ export default function Onboarding() {
                     onClick={() => parseResume.mutate(resumeText)}
                     disabled={resumeText.trim().length < 50 || parseResume.isPending}
                   >
-                    {parseResume.isPending ? 'Parsing...' : '✨ Auto-fill from this'}
+                    {parseResume.isPending ? 'Parsing...' : '✨ Auto-fill from text'}
                   </Button>
                 </div>
-                {parseResume.isSuccess && (
+                {(parseResume.isSuccess || parseResumeFile.isSuccess) && (
                   <Button className="w-full" onClick={goNext}>Continue →</Button>
                 )}
               </CardContent>

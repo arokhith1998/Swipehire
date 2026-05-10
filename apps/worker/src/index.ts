@@ -58,7 +58,13 @@ new Worker('liveness', async (job: Job) => {
 new Worker('dol-ingest', async (job: Job) => {
   log.info({ jobId: job.id, data: job.data }, 'DOL ingest');
   const { ingestDolLca } = await import('../../api/src/visa/ingest/dolLca.js');
-  return await ingestDolLca({ fiscalQuarter: job.data.fiscalQuarter });
+  // Job payload must include { url, fiscalQuarter } — see ingestDolLca().
+  return await ingestDolLca({
+    url: job.data.url,
+    fiscalQuarter: job.data.fiscalQuarter,
+    dryRun: job.data.dryRun,
+    maxRows: job.data.maxRows,
+  });
 }, { connection, concurrency: 1 });
 
 // ---------------------------------------------------------------------
