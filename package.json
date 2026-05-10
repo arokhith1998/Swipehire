@@ -1,0 +1,34 @@
+{
+  "name": "swipehire",
+  "version": "2.0.0-dev",
+  "private": true,
+  "description": "Visa-aware job matching platform — calibrated, honest, and built for international candidates.",
+  "type": "module",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --stream dev",
+    "build": "pnpm -r build",
+    "start": "pnpm --filter @swipehire/api start",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @swipehire/db generate",
+    "db:push": "pnpm --filter @swipehire/db push",
+    "db:migrate": "pnpm --filter @swipehire/db migrate",
+    "db:seed": "pnpm --filter @swipehire/db seed",
+    "ml:dev": "pnpm --filter ml-sidecar dev",
+    "worker:dev": "pnpm --filter @swipehire/worker dev",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "doctor": "node scripts/doctor.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "tsx": "^4.19.1",
+    "typescript": "5.6.3",
+    "prettier": "^3.3.3"
+  }
+}

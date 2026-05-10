@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": ["vite/client"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@swipehire/shared": ["../../packages/shared/src/index.ts"],
+      "@swipehire/shared/*": ["../../packages/shared/src/*"]
+    }
+  },
+  "include": [
+    "src/components/CapabilityBadge.tsx",
+    "src/components/CapabilityFilterChips.tsx",
+    "src/pages/saved.tsx",
+    "src/pages/honesty.tsx"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

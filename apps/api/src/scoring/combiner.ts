@@ -1,0 +1,78 @@
+/**
+ * Combiner — weighted sum of subscores with role-family-conditional weights.
+ *
+ * Default weights are bootstrapped from logistic regression on a labeled set.
+ * Per-role-family weights are loaded from ml.calibration_models once enough
+ * outcome data exists (≥1k outcomes per family).
+ */
+
+import type { Subscore, SubscoreKey } from '@swipehire/shared';
+
+/** Default weights — used when no role-family-specific weights are loaded. */
+const DEFAULT_WEIGHTS: Record<SubscoreKey, number> = {
+  skillsSemantic:    0.30,
+  titleAlignment:    0.18,
+  seniorityFit:      0.12,
+  locationFit:       0.10,
+  domainExperience:  0.08,
+  visaCompatibility: 0.10,
+  salaryFit:         0.06,
+  recencySignal:     0.06,
+};
+
+/** Per-role-family overrides — populated from ml.calibration_models in v2.1. */
+const ROLE_FAMILY_WEIGHTS = new Map<number, Record<SubscoreKey, number>>();
+
+export interface CombineResult {
+  raw: number;
+  weights: Record<SubscoreKey, number>;
+}
+
+/**
+ * Combine subscores into a raw score in [0,1].
+ *
+ * Anti-inflation rule: if a subscore has confidence: 0 (e.g. salary missing),
+ * we redistribute its weight proportionally to the other subscores instead of
+ * including a guess.
+ */
+export function combine(
+  subscores: Record<SubscoreKey, Subscore>,
+  roleFamilyId: number | null
+): CombineResult {
+  const baseWeights = (roleFamilyId && ROLE_FAMILY_WEIGHTS.get(roleFamilyId)) || DEFAULT_WEIGHTS;
+  const weights = redistributeForLowConfidence(subscores, baseWeights);
+
+  let raw = 0;
+  for (const key of Object.keys(weights) as SubscoreKey[]) {
+    raw += weights[key] * subscores[key].value;
+  }
+  return { raw: Math.max(0, Math.min(1, raw)), weights };
+}
+
+/**
+ * If a subscore has confidence: 0 (we explicitly know we don't know), drop its
+ * weight to 0 and renormalize the remaining weights to sum to 1.
+ *
+ * This prevents missing data from being scored as "neutral" (0.5 with full weight).
+ */
+function redistributeForLowConfidence(
+  subscores: Record<SubscoreKey, Subscore>,
+  base: Record<SubscoreKey, number>
+): Record<SubscoreKey, number> {
+  const adjusted = { ...base };
+  let removedWeight = 0;
+  for (const key of Object.keys(base) as SubscoreKey[]) {
+    if (subscores[key].confidence === 0) {
+      removedWeight += adjusted[key];
+      adjusted[key] = 0;
+    }
+  }
+  if (removedWeight === 0) return adjusted;
+  const remainingTotal = 1 - removedWeight;
+  if (remainingTotal === 0) return adjusted; // pathological: no signal at all
+  // Scale remaining proportionally
+  for (const key of Object.keys(adjusted) as SubscoreKey[]) {
+    adjusted[key] = adjusted[key] / remainingTotal;
+  }
+  return adjusted;
+}

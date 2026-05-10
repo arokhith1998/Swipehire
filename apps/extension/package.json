@@ -1,0 +1,23 @@
+{
+  "name": "@swipehire/extension",
+  "version": "2.0.0-dev",
+  "private": true,
+  "type": "module",
+  "description": "SwipeHire Chrome/Firefox extension — auto-fill any career page using your SwipeHire profile + tailored resume.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "package": "vite build && cd dist && zip -r ../swipehire-extension.zip .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@swipehire/applier-core": "workspace:*",
+    "@swipehire/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.27",
+    "@types/chrome": "^0.0.281",
+    "typescript": "5.6.3",
+    "vite": "^5.4.19"
+  }
+}

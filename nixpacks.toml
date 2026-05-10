@@ -1,0 +1,26 @@
+# Railway / Nixpacks build config for SwipeHire monorepo.
+#
+# Railway runs this for both the api and worker services (same repo,
+# different start commands set in the Railway UI).
+#
+# Why pin Node 22? Required by --env-file (used in dev) and aligned with
+# package.json "engines": { "node": ">=22.0.0" }.
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "pnpm-9_x"]
+
+[phases.install]
+cmds = [
+  "pnpm install --frozen-lockfile"
+]
+
+[phases.build]
+# We don't compile to dist — the api/worker start scripts use tsx in prod.
+# This phase exists so Nixpacks doesn't try to run a default build.
+cmds = ["echo 'no-op build (tsx in prod)'"]
+
+[start]
+# Override per service in the Railway UI:
+#   api    →  pnpm --filter @swipehire/api start
+#   worker →  pnpm --filter @swipehire/worker start
+cmd = "pnpm --filter @swipehire/api start"

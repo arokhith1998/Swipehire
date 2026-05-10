@@ -1,0 +1,89 @@
+SWIPEHIRE — YC SUMMER 2026 — 60-SECOND SCRIPT
+==============================================
+
+
+[ON CAMERA — 0:00 to 0:13]
+--------------------------
+
+Hi YC, I'm Adhithya.
+
+I'm an international student on STEM OPT, and over the last year
+I've applied to two hundred jobs through tools like Jobright.
+
+Half were ghost jobs.
+
+The visa filter was wrong.
+
+Auto-apply never worked.
+
+
+
+[CUT TO SCREEN — 0:13 to 0:52]
+------------------------------
+
+>> [Slide: title]
+
+So I built SwipeHire —
+the visa-aware job platform that doesn't lie to you.
+
+
+>> [Slide: visa onboarding]
+
+We use real Department of Labor data —
+four point eight million LCA records —
+to give you per-employer sponsorship intelligence.
+
+
+>> [Slide: swipe feed]
+
+Match scores are calibrated probabilities, not vibes.
+
+Strong fit means seventy-eight percent chance of an interview,
+with a confidence interval.
+
+
+>> [Slide: visa intel detail]
+
+You see exactly which companies sponsor in your SOC code,
+with salary safe-harbor warnings.
+
+
+>> [Slide: extension overlay on Workday]
+
+Where we can auto-apply, we do —
+server-side or via our browser extension.
+
+Where we can't, you stay in control.
+
+We never click Submit for you.
+
+
+>> [Slide: honesty dashboard]
+
+And we publish our calibration error
+and ghost-job rate publicly.
+
+Every week.
+
+
+
+[CUT TO CAMERA — 0:52 to 1:00]
+------------------------------
+
+One million international students graduate into the US every year.
+
+None of them have a job platform built for them.
+
+We are.
+
+Thanks for considering us.
+
+
+
+==============================================
+KEY DELIVERY NOTES:
+- Pause one second after "auto-apply never worked"
+- Hit "calibrated probabilities, not vibes" deliberately
+- Slow down on "We never click Submit for you"
+- Eye contact on the final "We are"
+==============================================

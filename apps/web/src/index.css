@@ -1,0 +1,190 @@
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&family=Open+Sans:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* SwipeHire Brand Colors */
+  --brand-teal: hsl(175, 100%, 34%); /* #00ABA8 */
+  --brand-dark: hsl(205, 51%, 18%); /* #1E2A38 */
+  --brand-orange: hsl(37, 100%, 50%); /* #FFB100 */
+  --brand-gray: hsl(0, 0%, 45%); /* #737373 */
+  --brand-light: hsl(210, 100%, 25%); /* #000080 */
+  
+  /* Core theme colors using brand palette */
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(205, 51%, 18%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(0, 0%, 45%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(205, 51%, 18%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(205, 51%, 18%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(175, 100%, 34%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(37, 100%, 50%);
+  --secondary-foreground: hsl(205, 51%, 18%);
+  --accent: hsl(60, 4.8%, 95.9%);
+  --accent-foreground: hsl(205, 51%, 18%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --success: hsl(175, 100%, 34%);
+  --success-foreground: hsl(0, 0%, 100%);
+  --warning: hsl(37, 100%, 50%);
+  --warning-foreground: hsl(205, 51%, 18%);
+  --ring: hsl(175, 100%, 34%);
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: hsl(205, 51%, 18%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(205, 30%, 25%);
+  --muted-foreground: hsl(0, 0%, 70%);
+  --popover: hsl(205, 51%, 18%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(205, 51%, 18%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(205, 30%, 25%);
+  --input: hsl(205, 30%, 25%);
+  --primary: hsl(175, 100%, 34%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(37, 100%, 50%);
+  --secondary-foreground: hsl(205, 51%, 18%);
+  --accent: hsl(205, 30%, 25%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --success: hsl(175, 100%, 34%);
+  --success-foreground: hsl(0, 0%, 100%);
+  --warning: hsl(37, 100%, 50%);
+  --warning-foreground: hsl(205, 51%, 18%);
+  --ring: hsl(175, 100%, 34%);
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply antialiased bg-background text-foreground;
+    font-family: 'Open Sans', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 600;
+  }
+  
+  /* Brand utility classes */
+  .brand-teal {
+    color: hsl(var(--brand-teal));
+  }
+  
+  .brand-orange {
+    color: hsl(var(--brand-orange));
+  }
+  
+  .brand-dark {
+    color: hsl(var(--brand-dark));
+  }
+  
+  .bg-brand-teal {
+    background-color: hsl(var(--brand-teal));
+  }
+  
+  .bg-brand-orange {
+    background-color: hsl(var(--brand-orange));
+  }
+  
+  .bg-brand-dark {
+    background-color: hsl(var(--brand-dark));
+  }
+  
+  .text-brand-gray {
+    color: hsl(var(--brand-gray));
+  }
+}
+
+/* Custom animations for swipe gestures */
+@keyframes swipe-right {
+  0% { transform: translateX(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateX(300px) rotate(30deg); opacity: 0; }
+}
+
+@keyframes swipe-left {
+  0% { transform: translateX(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateX(-300px) rotate(-30deg); opacity: 0; }
+}
+
+.swipe-right {
+  animation: swipe-right 0.6s ease-out forwards;
+}
+
+.swipe-left {
+  animation: swipe-left 0.6s ease-out forwards;
+}
+
+/* Card stack animation */
+.job-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.job-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Success and warning colors */
+.text-success {
+  color: hsl(var(--success));
+}
+
+.bg-success {
+  background-color: hsl(var(--success));
+}
+
+.bg-success\/10 {
+  background-color: hsl(var(--success) / 0.1);
+}
+
+.bg-success\/20 {
+  background-color: hsl(var(--success) / 0.2);
+}
+
+.text-warning {
+  color: hsl(var(--warning));
+}
+
+.bg-warning {
+  background-color: hsl(var(--warning));
+}
+
+.bg-warning\/10 {
+  background-color: hsl(var(--warning) / 0.1);
+}
+
+.text-secondary {
+  color: hsl(var(--secondary));
+}
+
+.bg-secondary\/10 {
+  background-color: hsl(var(--secondary) / 0.1);
+}
+
+.bg-secondary\/20 {
+  background-color: hsl(var(--secondary) / 0.2);
+}
+
+.text-secondary\/70 {
+  color: hsl(var(--secondary) / 0.7);
+}
+
+.text-success\/70 {
+  color: hsl(var(--success) / 0.7);
+}

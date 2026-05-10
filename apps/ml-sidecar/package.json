@@ -1,0 +1,10 @@
+{
+  "name": "ml-sidecar",
+  "version": "2.0.0-dev",
+  "private": true,
+  "description": "Python FastAPI sidecar — embeddings + calibration + classifiers. Run via Docker or `pip install -r requirements.txt && uvicorn main:app --reload --port 8001`.",
+  "scripts": {
+    "dev": "node -e \"console.log('ml-sidecar runs via docker compose up -d (or: cd apps/ml-sidecar && uvicorn main:app --reload --port 8001)')\"",
+    "build": "node -e \"console.log('Built via docker compose build ml-sidecar')\""
+  }
+}

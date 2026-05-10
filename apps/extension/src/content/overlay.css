@@ -1,0 +1,213 @@
+/**
+ * Overlay styles — scoped to the SwipeHire overlay; high z-index so it
+ * always sits above the host page. All rules use the .sh- prefix to
+ * avoid collisions with the host page's CSS.
+ */
+
+#swipehire-overlay {
+  all: initial;
+  font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#swipehire-overlay .sh-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;   /* max */
+  background: rgba(30, 42, 56, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  font-family: inherit;
+}
+
+#swipehire-overlay .sh-overlay-card {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  color: #1E2A38;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+#swipehire-overlay .sh-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+#swipehire-overlay .sh-overlay-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 600;
+  color: #1E2A38;
+}
+
+#swipehire-overlay .sh-overlay-logo-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #00ABA8, #00807E);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+#swipehire-overlay .sh-overlay-close {
+  background: transparent;
+  border: 0;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#swipehire-overlay .sh-overlay-close:hover {
+  background: #f5f5f5;
+  color: #333;
+}
+
+#swipehire-overlay .sh-overlay-body {
+  padding: 16px;
+}
+
+#swipehire-overlay .sh-overlay-h2 {
+  font-family: 'Work Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+#swipehire-overlay .sh-overlay-ats {
+  text-transform: capitalize;
+  color: #00ABA8;
+}
+
+#swipehire-overlay .sh-overlay-summary {
+  margin: 0 0 16px;
+  color: #555;
+}
+
+#swipehire-overlay .sh-overlay-details {
+  margin: 12px 0;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+#swipehire-overlay .sh-overlay-details summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: #1E2A38;
+  padding: 4px 0;
+}
+
+#swipehire-overlay .sh-overlay-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+#swipehire-overlay .sh-overlay-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid #f7f7f7;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#swipehire-overlay .sh-overlay-list li:last-child {
+  border-bottom: 0;
+}
+
+#swipehire-overlay .sh-overlay-key {
+  color: #555;
+  flex-shrink: 0;
+}
+
+#swipehire-overlay .sh-overlay-value {
+  color: #1E2A38;
+  font-weight: 500;
+  text-align: right;
+  word-break: break-word;
+  max-width: 200px;
+}
+
+#swipehire-overlay .sh-overlay-list-warning .sh-overlay-key {
+  color: #B36800;
+}
+
+#swipehire-overlay .sh-overlay-warning {
+  background: #FFF4E0;
+  border-left: 3px solid #FFB100;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #6e4400;
+  margin: 10px 0;
+}
+
+#swipehire-overlay .sh-overlay-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+#swipehire-overlay .sh-overlay-btn-primary,
+#swipehire-overlay .sh-overlay-btn-secondary {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+#swipehire-overlay .sh-overlay-btn-primary {
+  background: #00ABA8;
+  color: #fff;
+}
+
+#swipehire-overlay .sh-overlay-btn-primary:hover {
+  background: #00807E;
+}
+
+#swipehire-overlay .sh-overlay-btn-secondary {
+  background: transparent;
+  color: #555;
+  border: 1px solid #ddd;
+}
+
+#swipehire-overlay .sh-overlay-btn-secondary:hover {
+  background: #f5f5f5;
+}
+
+#swipehire-overlay .sh-overlay-fineprint {
+  margin: 0;
+  padding: 0 16px 14px;
+  text-align: center;
+  font-size: 11px;
+  color: #999;
+}

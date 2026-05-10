@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "node_modules", "dist", "**/*.test.ts",
+    "src/index.ts", "src/routes.ts", "src/storage.ts", "src/db.ts",
+    "src/vite.ts", "src/services/**"
+  ]
+}

@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build outputs
+dist/
+build/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.production
+!.env.example
+!.env.production.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Generated files (system-owned, regenerable)
+apps/api/dist/
+apps/web/dist/
+apps/ml-sidecar/models/
+apps/worker/dist/
+
+# User-uploaded resumes (never commit)
+uploads/
+tmp/
+*.pdf
+*.docx
+!apps/web/public/**/*.pdf
+
+# Database
+*.db
+*.sqlite
+pgdata/
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Replit reference (kept locally for migration only)
+_reference/

@@ -1,0 +1,66 @@
+{
+  "manifest_version": 3,
+  "name": "SwipeHire — Auto-fill any career page",
+  "short_name": "SwipeHire",
+  "version": "2.0.0",
+  "description": "Auto-fill job applications on any ATS using your SwipeHire profile + tailored resume. Always shows you what we'll submit before you send it.",
+  "author": "SwipeHire",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://boards.greenhouse.io/*",
+        "*://job-boards.greenhouse.io/*",
+        "*://*.greenhouse.io/*",
+        "*://jobs.lever.co/*",
+        "*://*.lever.co/*",
+        "*://jobs.ashbyhq.com/*",
+        "*://*.ashbyhq.com/*",
+        "*://*.myworkdayjobs.com/*",
+        "*://*.icims.com/*",
+        "*://*.smartrecruiters.com/*",
+        "*://*.jobvite.com/*",
+        "*://*.workable.com/*",
+        "*://*.taleo.net/*",
+        "*://*/*career*",
+        "*://*/*job*"
+      ],
+      "js": ["src/content/index.ts"],
+      "css": ["src/content/overlay.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://api.swipehire.io/*",
+    "http://localhost:5000/*"
+  ],
+  "options_page": "src/popup/index.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["src/content/overlay.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

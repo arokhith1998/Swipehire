@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SwipeHire — YC Demo</title>
+<meta name="viewport" content="width=1920, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&family=Open+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --teal: #00ABA8;
+  --teal-dark: #00807E;
+  --teal-50: #E8F8F7;
+  --dark: #1E2A38;
+  --dark-soft: #2C3E50;
+  --orange: #FFB100;
+  --orange-50: #FFF4E0;
+  --gray: #737373;
+  --gray-100: #F2F2F2;
+  --gray-200: #E5E5E5;
+  --gray-300: #D4D4D4;
+  --gray-500: #8B8B8B;
+  --gray-700: #404040;
+  --green: #16A34A;
+  --green-50: #DCFCE7;
+  --red: #DC2626;
+  --red-50: #FEE2E2;
+  --bg: #FAFAFA;
+  --card: #FFFFFF;
+  --shadow: 0 4px 24px rgba(30, 42, 56, 0.08);
+  --shadow-lg: 0 12px 48px rgba(30, 42, 56, 0.15);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+html, body {
+  font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--dark);
+  height: 100vh;
+  overflow: hidden;
+}
+.stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.slide {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+.slide.active {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Progress bar */
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(0,0,0,0.05);
+  z-index: 100;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--teal);
+  width: 0%;
+  transition: width 300ms ease;
+}
+.dots {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 100;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gray-300);
+  transition: all 200ms;
+}
+.dot.active { background: var(--teal); width: 24px; border-radius: 4px; }
+.hint {
+  position: fixed;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--gray-500);
+  z-index: 100;
+  letter-spacing: 0.04em;
+}
+
+/* Common */
+h1, h2, h3, .title { font-family: 'Work Sans', sans-serif; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+.brand-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Open Sans', sans-serif;
+}
+.badge-teal { background: var(--teal-50); color: var(--teal-dark); }
+.badge-orange { background: var(--orange-50); color: #B36800; }
+.badge-green { background: var(--green-50); color: var(--green); }
+.badge-gray { background: var(--gray-100); color: var(--gray-700); }
+
+/* ============ SLIDE 1 — TITLE ============ */
+.slide-title {
+  flex-direction: column;
+  text-align: center;
+  background: linear-gradient(180deg, #FFFFFF 0%, var(--teal-50) 100%);
+}
+.slide-title .brand-mark {
+  width: 96px; height: 96px; font-size: 40px; border-radius: 24px;
+  margin-bottom: 32px;
+}
+.slide-title h1 {
+  font-size: 96px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--dark);
+  margin-bottom: 24px;
+}
+.slide-title .tagline {
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--gray-700);
+  max-width: 720px;
+  line-height: 1.4;
+}
+.slide-title .super {
+  margin-top: 48px;
+  font-size: 14px;
+  color: var(--gray-500);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ============ SLIDE 2 — ONBOARDING ============ */
+.slide-onboard { padding: 80px; }
+.onboard-card {
+  background: var(--card);
+  border-radius: 24px;
+  box-shadow: var(--shadow-lg);
+  padding: 56px;
+  width: 720px;
+  max-width: 100%;
+}
+.onboard-step {
+  font-size: 13px; color: var(--teal-dark); font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.onboard-card h2 {
+  font-size: 36px; font-weight: 600; margin-bottom: 8px; color: var(--dark);
+}
+.onboard-card .sub {
+  color: var(--gray); font-size: 16px; margin-bottom: 36px;
+}
+.work-auth-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+.option {
+  padding: 16px; border: 2px solid var(--gray-200); border-radius: 12px; cursor: pointer;
+  font-weight: 500; color: var(--gray-700);
+}
+.option.selected { border-color: var(--teal); background: var(--teal-50); color: var(--teal-dark); }
+.option .opt-sub { font-size: 12px; color: var(--gray-500); font-weight: 400; margin-top: 4px; }
+.option.selected .opt-sub { color: var(--teal-dark); opacity: 0.7; }
+.detected-pill {
+  background: linear-gradient(135deg, var(--teal-50), white);
+  border: 1px solid var(--teal);
+  border-radius: 12px; padding: 16px 20px;
+  display: flex; gap: 12px; align-items: flex-start;
+  margin-top: 20px;
+}
+.detected-pill .icon {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--teal); color: white;
+  display: flex; align-items: center; justify-content: center; font-weight: 700;
+  flex-shrink: 0; font-size: 14px;
+}
+.detected-pill .text { font-size: 14px; line-height: 1.5; color: var(--teal-dark); }
+.detected-pill .text strong { font-weight: 600; }
+
+/* ============ SLIDE 3 — SWIPE FEED ============ */
+.slide-feed { padding: 60px; gap: 60px; }
+.phone-frame {
+  width: 420px;
+  height: 820px;
+  background: var(--dark);
+  border-radius: 48px;
+  padding: 16px;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  flex-shrink: 0;
+}
+.phone-screen {
+  background: var(--bg);
+  border-radius: 32px;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+.phone-status {
+  height: 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 24px; font-size: 13px; font-weight: 600;
+}
+.feed-header { padding: 12px 20px 16px; border-bottom: 1px solid var(--gray-200); }
+.feed-title { font-family: 'Work Sans', sans-serif; font-size: 22px; font-weight: 600; }
+.feed-chips { display: flex; gap: 6px; padding: 12px 20px; overflow-x: auto; }
+.chip { padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.chip-active { background: var(--teal); color: white; }
+.chip-default { background: var(--gray-100); color: var(--gray-700); }
+.feed-cards { padding: 0 16px; position: relative; height: 580px; }
+.feed-card {
+  position: absolute; left: 16px; right: 16px;
+  background: white; border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 20px;
+  border: 1px solid var(--gray-200);
+}
+.feed-card.front { top: 16px; z-index: 3; transform: rotate(-1.5deg); }
+.feed-card.mid   { top: 24px; z-index: 2; transform: scale(0.97); opacity: 0.6; }
+.feed-card.back  { top: 32px; z-index: 1; transform: scale(0.94); opacity: 0.3; }
+.fc-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.fc-company { display: flex; align-items: center; gap: 10px; }
+.fc-logo {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: linear-gradient(135deg, #635BFF, #4D43E5);
+  color: white; font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.fc-name { font-weight: 600; font-size: 14px; }
+.fc-meta { font-size: 12px; color: var(--gray); }
+.fc-title { font-family: 'Work Sans', sans-serif; font-size: 22px; font-weight: 600; line-height: 1.2; margin: 8px 0 12px; }
+.fc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.score-block {
+  background: var(--teal-50);
+  border-radius: 12px; padding: 14px;
+  margin-bottom: 12px;
+}
+.score-row { display: flex; align-items: baseline; justify-content: space-between; }
+.score-label { font-size: 12px; color: var(--teal-dark); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.score-value { font-family: 'Work Sans', sans-serif; font-size: 28px; font-weight: 700; color: var(--teal-dark); }
+.score-ci { font-size: 13px; color: var(--teal-dark); margin-top: 4px; }
+.score-bar { height: 6px; background: rgba(0,0,0,0.06); border-radius: 3px; margin-top: 12px; overflow: hidden; position: relative; }
+.score-bar-ci {
+  position: absolute; left: 64%; right: 22%; top: 0; bottom: 0;
+  background: rgba(0, 171, 168, 0.4); border-radius: 3px;
+}
+.score-bar-pt {
+  position: absolute; left: 75%; top: -3px; width: 12px; height: 12px;
+  background: var(--teal-dark); border-radius: 50%; transform: translateX(-50%);
+  border: 2px solid white;
+}
+.visa-block {
+  background: white; border: 1px solid var(--green-50);
+  border-radius: 12px; padding: 12px;
+  margin-bottom: 12px;
+}
+.visa-row { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.5; color: var(--gray-700); }
+.visa-row .check { color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.swipe-hints {
+  display: flex; justify-content: space-between;
+  padding: 8px 16px 0;
+  font-size: 11px; color: var(--gray-500); letter-spacing: 0.04em;
+}
+
+.feed-side {
+  flex: 1;
+  max-width: 580px;
+}
+.feed-side h2 {
+  font-size: 56px; font-weight: 700; line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--dark); margin-bottom: 20px;
+}
+.feed-side h2 em { font-style: normal; color: var(--teal); }
+.feed-side .lede {
+  font-size: 19px; line-height: 1.5; color: var(--gray-700);
+  margin-bottom: 28px;
+}
+.feed-points { display: flex; flex-direction: column; gap: 14px; }
+.feed-point { display: flex; gap: 14px; align-items: flex-start; font-size: 16px; color: var(--gray-700); line-height: 1.5; }
+.feed-point .pt-icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: var(--teal-50); color: var(--teal-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Work Sans', sans-serif; font-weight: 700; flex-shrink: 0;
+}
+
+/* ============ SLIDE 4 — VISA INTEL DETAIL ============ */
+.slide-visa { padding: 60px; align-items: center; }
+.visa-detail {
+  display: grid; grid-template-columns: 1fr 1.1fr; gap: 48px; max-width: 1500px;
+}
+.visa-job-card {
+  background: white;
+  border-radius: 24px; padding: 40px;
+  box-shadow: var(--shadow-lg);
+}
+.vjc-company { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
+.vjc-logo {
+  width: 56px; height: 56px; border-radius: 12px;
+  background: linear-gradient(135deg, #635BFF, #4D43E5);
+  color: white; font-weight: 700; font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+}
+.vjc-name { font-family: 'Work Sans', sans-serif; font-size: 20px; font-weight: 600; }
+.vjc-meta { color: var(--gray); font-size: 14px; }
+.vjc-title { font-family: 'Work Sans', sans-serif; font-size: 32px; font-weight: 600; margin: 8px 0 20px; line-height: 1.2; }
+.vjc-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.vjc-section { margin-top: 24px; }
+.vjc-section-h { font-size: 12px; color: var(--gray); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+.match-detail {
+  background: var(--teal-50); border-radius: 16px; padding: 20px;
+}
+.match-detail .label { font-size: 13px; color: var(--teal-dark); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.match-detail .num { font-family: 'Work Sans', sans-serif; font-size: 56px; font-weight: 700; color: var(--teal-dark); line-height: 1; margin: 6px 0 4px; }
+.match-detail .ci { color: var(--teal-dark); font-size: 14px; }
+
+.visa-intel-side h2 {
+  font-family: 'Work Sans', sans-serif; font-size: 52px; font-weight: 700;
+  line-height: 1.05; letter-spacing: -0.02em; color: var(--dark);
+  margin-bottom: 16px;
+}
+.visa-intel-side .lede { font-size: 18px; color: var(--gray-700); line-height: 1.5; margin-bottom: 32px; }
+.visa-stats {
+  background: white; border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 28px;
+  margin-bottom: 16px;
+}
+.visa-stats-h { font-size: 13px; color: var(--gray-500); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 16px; }
+.visa-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+.vs-stat .vs-num { font-family: 'Work Sans', sans-serif; font-size: 32px; font-weight: 700; color: var(--dark); }
+.vs-stat .vs-lbl { font-size: 13px; color: var(--gray); margin-top: 2px; }
+.visa-warning {
+  background: var(--orange-50); border-left: 4px solid var(--orange);
+  padding: 16px 20px; border-radius: 10px;
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.visa-warning-text { font-size: 14px; line-height: 1.5; color: #6e4400; }
+.visa-warning-text strong { font-weight: 600; }
+
+/* ============ SLIDE 5 — APPLY QUEUE ============ */
+.slide-apply { padding: 80px; flex-direction: column; }
+.apply-confirm {
+  background: white; border-radius: 24px;
+  box-shadow: var(--shadow-lg);
+  padding: 56px; width: 680px; text-align: center;
+}
+.apply-icon {
+  width: 88px; height: 88px; border-radius: 50%;
+  background: var(--teal); color: white;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 44px; margin-bottom: 24px;
+}
+.apply-h { font-family: 'Work Sans', sans-serif; font-size: 36px; font-weight: 600; margin-bottom: 12px; }
+.apply-sub { color: var(--gray); font-size: 17px; line-height: 1.5; margin-bottom: 32px; }
+.apply-queue {
+  background: var(--gray-100); border-radius: 14px;
+  padding: 16px 20px; text-align: left;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.apply-queue-left { display: flex; align-items: center; gap: 12px; }
+.apply-queue-text { font-weight: 500; }
+.apply-queue-sub { font-size: 12px; color: var(--gray); margin-top: 2px; }
+.spinner {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 3px solid var(--gray-200); border-top-color: var(--teal);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============ SLIDE 6 — EXTENSION OVERLAY ============ */
+.slide-ext { padding: 0; flex-direction: column; gap: 0; }
+.ext-bg {
+  width: 100vw; height: 100vh;
+  background: linear-gradient(180deg, #f5f7fa 0%, #ebeff4 100%);
+  display: flex; flex-direction: column; align-items: center;
+  position: relative;
+}
+.browser-chrome {
+  width: 90%; max-width: 1500px; margin: 32px auto 0;
+  background: white; border-radius: 12px 12px 0 0;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.05);
+  border: 1px solid var(--gray-200); border-bottom: 0;
+}
+.browser-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-bottom: 1px solid var(--gray-200);
+}
+.browser-dots { display: flex; gap: 6px; }
+.browser-dots span { width: 12px; height: 12px; border-radius: 50%; }
+.browser-url {
+  flex: 1; background: var(--gray-100); border-radius: 8px;
+  padding: 8px 14px; font-size: 13px; color: var(--gray-700);
+  font-family: 'JetBrains Mono', monospace;
+}
+.browser-ext-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+  color: white; display: flex; align-items: center; justify-content: center;
+  font-family: 'Work Sans', sans-serif; font-weight: 700; font-size: 11px;
+}
+.workday-page {
+  width: 90%; max-width: 1500px; margin: 0 auto; flex: 1;
+  background: white; border: 1px solid var(--gray-200); border-top: 0;
+  padding: 40px 60px; overflow: hidden;
+  position: relative;
+}
+.workday-header { font-family: 'Work Sans', sans-serif; font-weight: 600; color: #2557A6; font-size: 14px; margin-bottom: 8px; letter-spacing: 0.04em; }
+.workday-title { font-family: 'Work Sans', sans-serif; font-size: 32px; font-weight: 700; color: var(--dark); margin-bottom: 12px; }
+.workday-subtitle { color: var(--gray); margin-bottom: 32px; font-size: 16px; }
+.workday-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; max-width: 800px; }
+.wf-field { display: flex; flex-direction: column; gap: 6px; }
+.wf-label { font-size: 13px; font-weight: 500; color: var(--gray-700); }
+.wf-input {
+  padding: 10px 14px; border: 1px solid var(--gray-300); border-radius: 6px;
+  font-size: 14px; background: white;
+}
+.wf-input.filled { background: #FFFEF7; border-color: var(--orange); position: relative; }
+.wf-input.filled::after { content: '✓'; position: absolute; right: 8px; color: var(--orange); }
+.wf-full { grid-column: 1 / -1; }
+
+.ext-overlay {
+  position: absolute;
+  right: 5%; top: 80px;
+  width: 380px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(30, 42, 56, 0.25);
+  padding: 0;
+  z-index: 10;
+  border: 1px solid var(--gray-200);
+}
+.ext-overlay-h {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--gray-200);
+}
+.ext-overlay-h .left { display: flex; align-items: center; gap: 10px; }
+.ext-overlay-h .mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+  color: white; display: flex; align-items: center; justify-content: center;
+  font-family: 'Work Sans', sans-serif; font-weight: 700; font-size: 11px;
+}
+.ext-overlay-h .name { font-family: 'Work Sans', sans-serif; font-weight: 600; color: var(--dark); }
+.ext-overlay-h .x { color: var(--gray); font-size: 22px; cursor: pointer; }
+.ext-overlay-body { padding: 18px; }
+.ext-detected { font-family: 'Work Sans', sans-serif; font-size: 16px; font-weight: 600; color: var(--dark); margin-bottom: 4px; }
+.ext-detected em { color: var(--teal); font-style: normal; }
+.ext-summary { color: var(--gray); font-size: 13px; line-height: 1.5; margin-bottom: 14px; }
+.ext-summary strong { color: var(--dark); }
+.ext-list-h {
+  font-size: 12px; font-weight: 600; color: var(--gray); letter-spacing: 0.06em; text-transform: uppercase;
+  margin: 14px 0 8px;
+}
+.ext-list { background: var(--gray-100); border-radius: 10px; padding: 10px 14px; }
+.ext-li { display: flex; justify-content: space-between; padding: 6px 0; font-size: 12px; border-bottom: 1px solid var(--gray-200); }
+.ext-li:last-child { border-bottom: 0; }
+.ext-li .key { color: var(--gray-700); }
+.ext-li .val { color: var(--dark); font-weight: 500; max-width: 180px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ext-buttons { display: flex; gap: 8px; padding: 16px 18px; border-top: 1px solid var(--gray-200); }
+.btn-secondary { flex: 1; padding: 10px; border: 1px solid var(--gray-300); background: white; color: var(--gray-700); border-radius: 8px; font-weight: 500; cursor: pointer; }
+.btn-primary { flex: 2; padding: 10px; background: var(--teal); color: white; border: 0; border-radius: 8px; font-weight: 500; cursor: pointer; }
+.ext-fineprint { font-size: 11px; color: var(--gray); text-align: center; padding: 0 18px 14px; }
+
+/* ============ SLIDE 7 — HONESTY DASHBOARD ============ */
+.slide-honesty { padding: 60px 100px; flex-direction: column; align-items: stretch; }
+.honesty-header { text-align: center; margin-bottom: 48px; }
+.honesty-header h2 {
+  font-family: 'Work Sans', sans-serif; font-size: 56px; font-weight: 700;
+  letter-spacing: -0.02em; color: var(--dark);
+}
+.honesty-header .sub { font-size: 18px; color: var(--gray); margin-top: 12px; }
+.honesty-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1400px; margin: 0 auto; width: 100%;
+}
+.honesty-card {
+  background: white; border-radius: 20px; padding: 32px;
+  box-shadow: var(--shadow);
+}
+.honesty-card-h {
+  font-size: 14px; color: var(--gray); font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.honesty-big { font-family: 'Work Sans', sans-serif; font-size: 64px; font-weight: 700; color: var(--teal-dark); line-height: 1; }
+.honesty-sub { color: var(--gray-700); font-size: 14px; line-height: 1.5; margin-top: 12px; }
+.honesty-target { color: var(--gray); font-size: 12px; margin-top: 6px; }
+.calibration-bars { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.cb-row { display: grid; grid-template-columns: 80px 1fr 60px; gap: 12px; align-items: center; font-size: 12px; }
+.cb-label { color: var(--gray); }
+.cb-bar-track { background: var(--gray-200); height: 12px; border-radius: 6px; position: relative; overflow: hidden; }
+.cb-bar-fill { height: 100%; background: var(--teal); border-radius: 6px; }
+.cb-num { font-weight: 600; color: var(--dark); text-align: right; }
+.ats-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--gray-200); font-size: 14px; }
+.ats-row:last-child { border-bottom: 0; }
+.ats-row .ats-name { font-weight: 500; text-transform: capitalize; }
+.ats-row .ats-rate { color: var(--green); font-weight: 600; }
+.ats-row .ats-rate.warn { color: var(--orange); }
+
+/* ============ SLIDE 8 — RECRUITER SIDE ============ */
+.slide-rec { padding: 60px; gap: 48px; }
+.rec-side {
+  flex: 1; max-width: 540px;
+}
+.rec-side h2 {
+  font-family: 'Work Sans', sans-serif; font-size: 56px; font-weight: 700;
+  line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 20px;
+}
+.rec-side h2 em { font-style: normal; color: var(--teal); }
+.rec-side .lede { font-size: 18px; line-height: 1.5; color: var(--gray-700); margin-bottom: 24px; }
+.rec-points { display: flex; flex-direction: column; gap: 14px; }
+.rec-point { display: flex; gap: 12px; font-size: 16px; color: var(--gray-700); }
+.rec-point .pt { color: var(--teal); font-weight: 700; }
+
+.rec-dash {
+  flex: 1.2; max-width: 760px;
+  background: white; border-radius: 20px; padding: 32px;
+  box-shadow: var(--shadow-lg);
+}
+.rec-dash-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.rec-dash-title { font-family: 'Work Sans', sans-serif; font-size: 22px; font-weight: 600; }
+.rec-dash-job-list { display: flex; flex-direction: column; gap: 12px; }
+.rec-cand {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px; border: 1px solid var(--gray-200); border-radius: 12px;
+}
+.rec-cand-avatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+  color: white; display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 16px; flex-shrink: 0;
+}
+.rec-cand-info { flex: 1; min-width: 0; }
+.rec-cand-name { font-weight: 600; font-size: 15px; }
+.rec-cand-meta { color: var(--gray); font-size: 13px; margin-top: 2px; }
+.rec-cand-tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.rec-cand-score { text-align: right; flex-shrink: 0; }
+.rec-cand-score .num { font-family: 'Work Sans', sans-serif; font-size: 22px; font-weight: 700; color: var(--teal-dark); }
+.rec-cand-score .lbl { font-size: 11px; color: var(--gray); }
+.rec-actions { display: flex; gap: 6px; margin-left: 12px; flex-shrink: 0; }
+.rec-action-btn {
+  width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--gray-300);
+  background: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: var(--gray-700);
+}
+.verified-badge {
+  background: var(--teal-50); color: var(--teal-dark);
+  font-size: 11px; padding: 3px 8px; border-radius: 4px;
+  font-weight: 600;
+}
+
+/* ============ SLIDE 9 — CLOSING ============ */
+.slide-close {
+  flex-direction: column; text-align: center;
+  background: linear-gradient(135deg, var(--dark) 0%, #2c3e50 100%);
+  color: white;
+}
+.slide-close .brand-mark {
+  width: 80px; height: 80px; font-size: 32px;
+  background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+  margin-bottom: 32px;
+}
+.slide-close h1 {
+  font-size: 64px; font-weight: 700; line-height: 1.05;
+  letter-spacing: -0.02em; max-width: 1100px; margin-bottom: 24px;
+}
+.slide-close h1 em { font-style: normal; color: var(--teal); }
+.slide-close .lede { font-size: 22px; color: rgba(255,255,255,0.7); max-width: 800px; margin-bottom: 48px; }
+.slide-close .url {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px; color: var(--teal); padding: 14px 24px;
+  border: 1px solid rgba(0, 171, 168, 0.4); border-radius: 12px;
+}
+</style>
+</head>
+<body>
+<div class="progress"><div class="progress-fill" id="progress-fill"></div></div>
+
+<div class="stage" id="stage">
+
+  <!-- ============ SLIDE 1 — TITLE ============ -->
+  <section class="slide slide-title active" data-duration="3500">
+    <div class="brand-mark">SH</div>
+    <h1>SwipeHire</h1>
+    <p class="tagline">Visa-aware job search.<br>Calibrated. Honest. Built for international candidates.</p>
+    <p class="super">YC SUMMER 2026</p>
+  </section>
+
+  <!-- ============ SLIDE 2 — ONBOARDING ============ -->
+  <section class="slide slide-onboard" data-duration="6000">
+    <div class="onboard-card">
+      <div class="onboard-step">Step 3 of 5 · Work authorization</div>
+      <h2>What's your visa situation?</h2>
+      <p class="sub">We use this to find roles that actually sponsor people like you — using real DOL data.</p>
+      <div class="work-auth-options">
+        <div class="option">U.S. Citizen<div class="opt-sub">No sponsorship needed</div></div>
+        <div class="option">Green Card<div class="opt-sub">Permanent resident</div></div>
+        <div class="option">H-1B<div class="opt-sub">Currently sponsored</div></div>
+        <div class="option selected">F-1 STEM OPT<div class="opt-sub">Need H-1B within ~24mo</div></div>
+        <div class="option">F-1 OPT<div class="opt-sub">Need H-1B within ~12mo</div></div>
+        <div class="option">E-3 / TN / O-1<div class="opt-sub">Other categories</div></div>
+      </div>
+      <div class="detected-pill">
+        <div class="icon">i</div>
+        <div class="text">
+          <strong>STEM OPT detected.</strong> We'll filter to employers with active H-1B history in your target SOC codes.
+          Your CIP code (11.0701) extends OPT by 24 months — adding 18 months of runway to your job search.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SLIDE 3 — SWIPE FEED ============ -->
+  <section class="slide slide-feed" data-duration="9000">
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <div class="phone-status"><span>9:41</span><span>•••</span></div>
+        <div class="feed-header">
+          <div class="feed-title">Today's matches</div>
+        </div>
+        <div class="feed-chips">
+          <div class="chip chip-active">✨ Apply-ready · 23</div>
+          <div class="chip chip-default">All · 47</div>
+          <div class="chip chip-default">Visa-supportive</div>
+        </div>
+        <div class="feed-cards">
+          <div class="feed-card back"></div>
+          <div class="feed-card mid"></div>
+          <div class="feed-card front">
+            <div class="fc-row">
+              <div class="fc-company">
+                <div class="fc-logo">S</div>
+                <div>
+                  <div class="fc-name">Stripe</div>
+                  <div class="fc-meta">New York · 8d ago</div>
+                </div>
+              </div>
+              <span class="badge badge-teal">🤖 Auto-apply</span>
+            </div>
+            <div class="fc-title">Senior Marketing Manager, Growth</div>
+            <div class="fc-tags">
+              <span class="badge badge-gray">$185k–$220k</span>
+              <span class="badge badge-gray">Hybrid</span>
+              <span class="badge badge-green">Visa ✓</span>
+            </div>
+            <div class="score-block">
+              <div class="score-row">
+                <span class="score-label">Strong fit</span>
+                <span class="score-value">0.78</span>
+              </div>
+              <div class="score-ci">90% confidence: 0.72 – 0.84</div>
+              <div class="score-bar">
+                <div class="score-bar-ci"></div>
+                <div class="score-bar-pt"></div>
+              </div>
+            </div>
+            <div class="visa-block">
+              <div class="visa-row">
+                <span class="check">✓</span>
+                <span>Stripe filed <strong>142 LCAs</strong> in SOC 11-2021 (Marketing Mgrs) over 24mo · <strong>96% certified</strong> · last sponsored 11d ago</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="swipe-hints">
+          <span>← Skip</span><span>Apply →</span>
+        </div>
+      </div>
+    </div>
+    <div class="feed-side">
+      <h2>Match scores you can <em>actually trust</em></h2>
+      <p class="lede">No more "95% match" theater. Every score is a calibrated probability of getting an interview, with a confidence interval. When we don't have enough data, we say so.</p>
+      <div class="feed-points">
+        <div class="feed-point"><div class="pt-icon">1</div><div><strong>Calibrated, not vibes.</strong> Trained on real recruiter outcomes — not engagement metrics.</div></div>
+        <div class="feed-point"><div class="pt-icon">2</div><div><strong>Capability badges.</strong> Know before you swipe whether we can auto-apply, or if you'll do it yourself.</div></div>
+        <div class="feed-point"><div class="pt-icon">3</div><div><strong>Visa intel built-in.</strong> Per-employer DOL data, not USCIS keyword filters.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SLIDE 4 — VISA INTEL DETAIL ============ -->
+  <section class="slide slide-visa" data-duration="9000">
+    <div class="visa-detail">
+      <div class="visa-job-card">
+        <div class="vjc-company">
+          <div class="vjc-logo">S</div>
+          <div>
+            <div class="vjc-name">Stripe</div>
+            <div class="vjc-meta">Payments · 7,000+ employees</div>
+          </div>
+        </div>
+        <div class="vjc-title">Senior Marketing Manager, Growth</div>
+        <div class="vjc-tags">
+          <span class="badge badge-gray">New York</span>
+          <span class="badge badge-gray">Full-time</span>
+          <span class="badge badge-green">Visa ✓</span>
+          <span class="badge badge-teal">SOC 11-2021</span>
+        </div>
+        <div class="vjc-section">
+          <div class="vjc-section-h">Match score</div>
+          <div class="match-detail">
+            <div class="label">Interview probability</div>
+            <div class="num">0.78</div>
+            <div class="ci">90% CI: 0.72 – 0.84 · Strong fit</div>
+          </div>
+        </div>
+        <div class="vjc-section">
+          <div class="vjc-section-h">Top reasons to apply</div>
+          <p style="font-size: 14px; color: var(--gray-700); line-height: 1.6;">
+            • Direct payments domain match<br>
+            • Stripe sponsors aggressively in this SOC<br>
+            • Salary above prevailing wage Level II
+          </p>
+        </div>
+      </div>
+      <div class="visa-intel-side">
+        <h2>The first <em>real</em> visa-intel layer</h2>
+        <p class="lede">We ingest 4.8M+ DOL OFLC LCA records and surface per-employer, per-SOC sponsorship history with freshness, certification rate, and a salary safe-harbor check.</p>
+        <div class="visa-stats">
+          <div class="visa-stats-h">Stripe · SOC 11-2021 · last 24 months</div>
+          <div class="visa-stats-grid">
+            <div class="vs-stat"><div class="vs-num">142</div><div class="vs-lbl">LCAs filed</div></div>
+            <div class="vs-stat"><div class="vs-num">96%</div><div class="vs-lbl">Certified</div></div>
+            <div class="vs-stat"><div class="vs-num">$210k</div><div class="vs-lbl">Median wage offered</div></div>
+            <div class="vs-stat"><div class="vs-num">11d</div><div class="vs-lbl">Since last sponsorship</div></div>
+          </div>
+        </div>
+        <div class="visa-warning">
+          <div style="font-size: 18px;">✓</div>
+          <div class="visa-warning-text">
+            <strong>Salary clears prevailing wage.</strong> Posted band of $185k–$220k is above the DOL Level II prevailing wage of $165k for this SOC + metro. Sponsorship will not be wage-blocked.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SLIDE 5 — APPLY QUEUE ============ -->
+  <section class="slide slide-apply" data-duration="5000">
+    <div class="apply-confirm">
+      <div class="apply-icon">✓</div>
+      <h3 class="apply-h">Queued for auto-apply</h3>
+      <p class="apply-sub">We'll submit your tailored resume + cover letter via Greenhouse within the next 30 minutes. You'll see the result in your dashboard.</p>
+      <div class="apply-queue">
+        <div class="apply-queue-left">
+          <div class="spinner"></div>
+          <div>
+            <div class="apply-queue-text">Stripe · Senior Marketing Manager, Growth</div>
+            <div class="apply-queue-sub">Submitting via Greenhouse · ETA 14 minutes</div>
+          </div>
+        </div>
+        <span class="badge badge-teal">🤖 Auto</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SLIDE 6 — EXTENSION OVERLAY ============ -->
+  <section class="slide slide-ext" data-duration="9000">
+    <div class="ext-bg">
+      <div class="browser-chrome">
+        <div class="browser-bar">
+          <div class="browser-dots">
+            <span style="background: #FF5F56;"></span>
+            <span style="background: #FFBD2E;"></span>
+            <span style="background: #27C93F;"></span>
+          </div>
+          <div class="browser-url">notion.wd5.myworkdayjobs.com/Notion_Careers/job/New-York/Product-Marketing-Manager_R-2483</div>
+          <div class="browser-ext-icon">SH</div>
+        </div>
+      </div>
+      <div class="workday-page">
+        <div class="workday-header">NOTION CAREERS</div>
+        <div class="workday-title">Product Marketing Manager</div>
+        <div class="workday-subtitle">New York, NY · Full-time · Posted 5 days ago</div>
+        <div class="workday-form">
+          <div class="wf-field">
+            <label class="wf-label">First name *</label>
+            <input class="wf-input filled" value="Adhithya" readonly>
+          </div>
+          <div class="wf-field">
+            <label class="wf-label">Last name *</label>
+            <input class="wf-input filled" value="Bhaskar" readonly>
+          </div>
+          <div class="wf-field">
+            <label class="wf-label">Email *</label>
+            <input class="wf-input filled" value="abhaskar@ur.rochester.edu" readonly>
+          </div>
+          <div class="wf-field">
+            <label class="wf-label">Phone *</label>
+            <input class="wf-input filled" value="+1 (585) 555-0142" readonly>
+          </div>
+          <div class="wf-field wf-full">
+            <label class="wf-label">LinkedIn URL</label>
+            <input class="wf-input filled" value="linkedin.com/in/adhithya-bhaskar" readonly>
+          </div>
+          <div class="wf-field">
+            <label class="wf-label">Are you legally authorized to work in the US? *</label>
+            <input class="wf-input filled" value="Yes" readonly>
+          </div>
+          <div class="wf-field">
+            <label class="wf-label">Will you require sponsorship? *</label>
+            <input class="wf-input filled" value="Yes (within ~24 months)" readonly>
+          </div>
+        </div>
+        <div class="ext-overlay">
+          <div class="ext-overlay-h">
+            <div class="left">
+              <div class="mark">SH</div>
+              <div class="name">SwipeHire</div>
+            </div>
+            <div class="x">×</div>
+          </div>
+          <div class="ext-overlay-body">
+            <div class="ext-detected">Detected: <em>Workday</em></div>
+            <div class="ext-summary">We can fill <strong>11 fields</strong> from your profile. <strong>0 required fields</strong> need your input.</div>
+            <div class="ext-list-h">What we'll fill</div>
+            <div class="ext-list">
+              <div class="ext-li"><span class="key">First name</span><span class="val">Adhithya</span></div>
+              <div class="ext-li"><span class="key">Last name</span><span class="val">Bhaskar</span></div>
+              <div class="ext-li"><span class="key">Email</span><span class="val">abhaskar@ur.…</span></div>
+              <div class="ext-li"><span class="key">LinkedIn</span><span class="val">linkedin.com/in/…</span></div>
+              <div class="ext-li"><span class="key">Resume</span><span class="val">Tailored.pdf</span></div>
+              <div class="ext-li"><span class="key">Work authorized</span><span class="val">Yes</span></div>
+              <div class="ext-li"><span class="key">Sponsorship</span><span class="val">Yes (~24mo)</span></div>
+            </div>
+          </div>
+          <div class="ext-buttons">
+            <button class="btn-secondary">Not now</button>
+            <button class="btn-primary">Fill 11 fields</button>
+          </div>
+          <div class="ext-fineprint">We'll never click Submit for you. After filling, review and submit when ready.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SLIDE 7 — HONESTY DASHBOARD ============ -->
+  <section class="slide slide-honesty" data-duration="7500">
+    <div class="honesty-header">
+      <h2>Public honesty dashboard</h2>
+      <p class="sub">Updated weekly. The competition won't show you these numbers. We will.</p>
+    </div>
+    <div class="honesty-grid">
+      <div class="honesty-card">
+        <div class="honesty-card-h">Match score calibration · last 30 days</div>
+        <div class="calibration-bars">
+          <div class="cb-row"><span class="cb-label">90–100%</span><div class="cb-bar-track"><div class="cb-bar-fill" style="width: 88%;"></div></div><span class="cb-num">88%</span></div>
+          <div class="cb-row"><span class="cb-label">70–80%</span><div class="cb-bar-track"><div class="cb-bar-fill" style="width: 73%;"></div></div><span class="cb-num">73%</span></div>
+          <div class="cb-row"><span class="cb-label">50–60%</span><div class="cb-bar-track"><div class="cb-bar-fill" style="width: 51%;"></div></div><span class="cb-num">51%</span></div>
+          <div class="cb-row"><span class="cb-label">30–40%</span><div class="cb-bar-track"><div class="cb-bar-fill" style="width: 32%;"></div></div><span class="cb-num">32%</span></div>
+        </div>
+        <p class="honesty-sub">Of jobs we labeled in each band, this % led to interviews. Closer to 1:1 = honest.</p>
+      </div>
+      <div class="honesty-card">
+        <div class="honesty-card-h">Job liveness</div>
+        <div class="honesty-big">96.4%</div>
+        <p class="honesty-sub">Of 4,217 jobs surfaced this week, 4,065 were verified live within 24h of being shown.</p>
+        <p class="honesty-target">Target: ≥ 95%</p>
+      </div>
+      <div class="honesty-card">
+        <div class="honesty-card-h">Auto-apply success per ATS</div>
+        <div class="ats-row"><span class="ats-name">greenhouse</span><span class="ats-rate">94% · 312 attempts</span></div>
+        <div class="ats-row"><span class="ats-name">lever</span><span class="ats-rate">91% · 187 attempts</span></div>
+        <div class="ats-row"><span class="ats-name">ashby</span><span class="ats-rate">89% · 64 attempts</span></div>
+        <div class="ats-row"><span class="ats-name">workday (assisted)</span><span class="ats-rate warn">67% · 423 attempts</span></div>
+      </div>
+      <div class="honesty-card">
+        <div class="honesty-card-h">Visa data freshness</div>
+        <div class="honesty-big">FY26 Q1</div>
+        <p class="honesty-sub">DOL OFLC LCA data ingested 18 days ago. Next refresh: April 15, 2026.</p>
+        <p class="honesty-target">Cadence: quarterly (DOL release schedule)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SLIDE 8 — RECRUITER SIDE ============ -->
+  <section class="slide slide-rec" data-duration="7000">
+    <div class="rec-side">
+      <h2>The other side of the <em>marketplace</em></h2>
+      <p class="lede">Recruiters at companies that sponsor visas waste hours filtering LinkedIn. SwipeHire surfaces calibrated, visa-eligible candidates already matched to their open roles.</p>
+      <div class="rec-points">
+        <div class="rec-point"><span class="pt">→</span><div><strong>Verified Sponsor badges</strong> validated against DOL data — no fake claims.</div></div>
+        <div class="rec-point"><span class="pt">→</span><div><strong>Per-company match config</strong> — recruiter weights override the global model.</div></div>
+        <div class="rec-point"><span class="pt">→</span><div><strong>ATS write-back</strong> to Greenhouse / Lever / Ashby — candidates land in their existing pipeline.</div></div>
+        <div class="rec-point"><span class="pt">→</span><div><strong>Recruiter feedback trains the model</strong> — closing the calibration loop nobody else can.</div></div>
+      </div>
+    </div>
+    <div class="rec-dash">
+      <div class="rec-dash-h">
+        <div class="rec-dash-title">Marketing Manager · 12 candidates</div>
+        <span class="verified-badge">✓ Verified sponsor — SOC 11-2021</span>
+      </div>
+      <div class="rec-dash-job-list">
+        <div class="rec-cand">
+          <div class="rec-cand-avatar">AB</div>
+          <div class="rec-cand-info">
+            <div class="rec-cand-name">Adhithya Bhaskar</div>
+            <div class="rec-cand-meta">University of Rochester · STEM OPT · 3y growth marketing</div>
+            <div class="rec-cand-tags">
+              <span class="badge badge-green">Visa-eligible</span>
+              <span class="badge badge-gray">SQL</span>
+              <span class="badge badge-gray">GA4</span>
+              <span class="badge badge-gray">Mixpanel</span>
+            </div>
+          </div>
+          <div class="rec-cand-score">
+            <div class="num">0.81</div>
+            <div class="lbl">Strong fit</div>
+          </div>
+          <div class="rec-actions">
+            <button class="rec-action-btn" style="color: var(--green); border-color: var(--green-50);">✓</button>
+            <button class="rec-action-btn">✕</button>
+          </div>
+        </div>
+        <div class="rec-cand">
+          <div class="rec-cand-avatar" style="background: linear-gradient(135deg, #635BFF, #4D43E5);">PR</div>
+          <div class="rec-cand-info">
+            <div class="rec-cand-name">Priya Rajan</div>
+            <div class="rec-cand-meta">NYU · OPT · 5y product marketing</div>
+            <div class="rec-cand-tags">
+              <span class="badge badge-green">Visa-eligible</span>
+              <span class="badge badge-gray">PMM</span>
+              <span class="badge badge-gray">Marketo</span>
+            </div>
+          </div>
+          <div class="rec-cand-score">
+            <div class="num">0.74</div>
+            <div class="lbl">Promising</div>
+          </div>
+          <div class="rec-actions">
+            <button class="rec-action-btn">✓</button>
+            <button class="rec-action-btn">✕</button>
+          </div>
+        </div>
+        <div class="rec-cand">
+          <div class="rec-cand-avatar" style="background: linear-gradient(135deg, #FF8A00, #E85D00);">JC</div>
+          <div class="rec-cand-info">
+            <div class="rec-cand-name">Jamie Chen</div>
+            <div class="rec-cand-meta">Stanford · H-1B (transfer) · 6y growth</div>
+            <div class="rec-cand-tags">
+              <span class="badge badge-green">Visa-eligible</span>
+              <span class="badge badge-gray">Paid Acquisition</span>
+            </div>
+          </div>
+          <div class="rec-cand-score">
+            <div class="num">0.71</div>
+            <div class="lbl">Promising</div>
+          </div>
+          <div class="rec-actions">
+            <button class="rec-action-btn">✓</button>
+            <button class="rec-action-btn">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SLIDE 9 — CLOSING ============ -->
+  <section class="slide slide-close" data-duration="4000">
+    <div class="brand-mark">SH</div>
+    <h1>1M international students graduate into the US every year.<br>None of them have a job platform that knows their <em>visa</em>.</h1>
+    <p class="lede">SwipeHire is built for them — and trusted by everyone else.</p>
+    <div class="url">swipehire.io</div>
+  </section>
+
+</div>
+
+<div class="dots" id="dots"></div>
+<div class="hint">SPACE to pause · ← → to navigate · F for fullscreen</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const dots = document.getElementById('dots');
+const progressFill = document.getElementById('progress-fill');
+let current = 0;
+let paused = false;
+let timeoutId = null;
+let elapsed = 0;
+let lastTick = 0;
+
+slides.forEach((_, i) => {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.onclick = () => goTo(i);
+  dots.appendChild(d);
+});
+const dotEls = dots.querySelectorAll('.dot');
+
+function goTo(i) {
+  if (i < 0 || i >= slides.length) return;
+  slides[current].classList.remove('active');
+  current = i;
+  slides[current].classList.add('active');
+  dotEls.forEach((d, idx) => d.classList.toggle('active', idx === current));
+  elapsed = 0;
+  scheduleNext();
+}
+
+function scheduleNext() {
+  clearTimeout(timeoutId);
+  if (paused) return;
+  const dur = parseInt(slides[current].dataset.duration ?? 6000, 10);
+  lastTick = Date.now();
+  timeoutId = setTimeout(() => {
+    if (current < slides.length - 1) goTo(current + 1);
+    else goTo(0);
+  }, dur - elapsed);
+}
+
+function tickProgress() {
+  if (!paused) {
+    const now = Date.now();
+    elapsed += now - lastTick;
+    lastTick = now;
+  }
+  const dur = parseInt(slides[current].dataset.duration ?? 6000, 10);
+  progressFill.style.width = Math.min(100, (elapsed / dur) * 100) + '%';
+  requestAnimationFrame(tickProgress);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight') goTo(current + 1);
+  else if (e.key === 'ArrowLeft') goTo(current - 1);
+  else if (e.key === ' ') {
+    e.preventDefault();
+    paused = !paused;
+    if (!paused) { lastTick = Date.now(); scheduleNext(); }
+    else clearTimeout(timeoutId);
+  }
+  else if (e.key.toLowerCase() === 'f') {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+});
+
+scheduleNext();
+requestAnimationFrame(tickProgress);
+</script>
+</body>
+</html>
