@@ -27,6 +27,8 @@ import { jobsRouter } from './routers/v2/jobs.js';
 import { profileRouter } from './routers/v2/profile.js';
 import { dashboardRouter } from './routers/v2/dashboard.js';
 import { resumeRouter } from './routers/v2/resume.js';
+import { adminRouter } from './routers/v2/admin.js';
+import { outcomesRouter } from './routers/v2/outcomes.js';
 import { db } from '@swipehire/db';
 import { sql } from 'drizzle-orm';
 
@@ -145,6 +147,8 @@ export function createApp(): Express {
   app.use(profileRouter);
   app.use(resumeRouter);
   app.use(dashboardRouter);
+  app.use(outcomesRouter);
+  app.use(adminRouter);
   app.use(honestyRouter);
 
   // NOTE: routers/v2/feed.ts and routers/v2/saved.ts query the future
