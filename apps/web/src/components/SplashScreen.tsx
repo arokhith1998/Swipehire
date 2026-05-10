@@ -10,13 +10,14 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [animationPhase, setAnimationPhase] = useState(0);
 
   useEffect(() => {
-    const timer1 = setTimeout(() => setAnimationPhase(1), 200);
-    const timer2 = setTimeout(() => setAnimationPhase(2), 1200);
-    const timer3 = setTimeout(() => setAnimationPhase(3), 2200);
+    // Tighter timing — splash is a flourish, not a feature.
+    const timer1 = setTimeout(() => setAnimationPhase(1), 100);
+    const timer2 = setTimeout(() => setAnimationPhase(2), 600);
+    const timer3 = setTimeout(() => setAnimationPhase(3), 1100);
     const timer4 = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onComplete, 500);
-    }, 2800);
+      setTimeout(onComplete, 250);
+    }, 1400);
 
     return () => {
       clearTimeout(timer1);

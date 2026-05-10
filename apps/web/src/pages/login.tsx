@@ -126,13 +126,124 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <SwipeHireLogo size="lg" className="mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to SwipeHire™</h1>
-          <p className="text-gray-600">Visa-friendly job matching with AI-powered career support</p>
+    <div className="min-h-screen bg-gradient-to-br from-white via-teal-50/40 to-blue-50/40">
+      {/* Hero / marketing */}
+      <header className="px-4 sm:px-6 py-4 sm:py-6">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <SwipeHireLogo size="md" />
+          <a href="#auth" className="text-sm font-medium text-gray-700 hover:text-primary">Sign in</a>
         </div>
+      </header>
+
+      <section className="px-4 sm:px-6 pt-8 sm:pt-16 pb-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <div className="inline-block bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full mb-4">
+              Built for international candidates
+            </div>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-4">
+              Job matches that <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">don't lie</span> to you.
+            </h1>
+            <p className="text-lg text-gray-600 leading-relaxed mb-6">
+              Calibrated probability scores, real visa sponsorship data, and live company intel.
+              No inflated "95% match" theatre. Built for STEM-OPT, H-1B, and anyone who's tired
+              of LinkedIn's noise.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <a href="#auth" className="inline-flex items-center px-5 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors">
+                Try it free →
+              </a>
+              <a href="/honesty" className="inline-flex items-center px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-white transition-colors">
+                Honesty dashboard
+              </a>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-3xl font-bold text-primary">87%</div>
+              <div className="text-sm font-medium text-gray-900 mt-1">Strong fit</div>
+              <div className="text-xs text-gray-500 mt-0.5">90% CI: 81–93%</div>
+              <div className="mt-3 space-y-1.5">
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="bg-green-500 h-full rounded-full" style={{ width: "92%" }} />
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="bg-blue-500 h-full rounded-full" style={{ width: "78%" }} />
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="bg-blue-500 h-full rounded-full" style={{ width: "65%" }} />
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Visa intel</div>
+              <div className="text-base font-bold text-gray-900 mt-1">Stripe</div>
+              <div className="text-xs text-gray-500 mt-1">From DOL OFLC LCA records</div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-gray-50 rounded p-2">
+                  <div className="text-gray-500">LCAs (24mo)</div>
+                  <div className="font-bold text-gray-900">142</div>
+                </div>
+                <div className="bg-gray-50 rounded p-2">
+                  <div className="text-gray-500">Approved</div>
+                  <div className="font-bold text-gray-900">94%</div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 col-span-2">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Why apply</div>
+              <ul className="space-y-1.5 text-sm">
+                <li className="flex items-start gap-1.5"><span className="text-green-600 mt-0.5">✓</span><span className="text-gray-700">Matched 8/10 JD skills: Python, AWS, PostgreSQL...</span></li>
+                <li className="flex items-start gap-1.5"><span className="text-green-600 mt-0.5">✓</span><span className="text-gray-700">Job is hybrid in SF Bay Area; user prefers hybrid</span></li>
+                <li className="flex items-start gap-1.5"><span className="text-yellow-600 mt-0.5">⚠</span><span className="text-gray-700">Salary band lower than expected ($165k vs $180k)</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* What we do differently */}
+      <section className="px-4 sm:px-6 py-10 bg-white border-y border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Three things every other tool gets wrong</h2>
+          <p className="text-center text-gray-600 mb-8">And what we're doing differently.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <div className="text-3xl mb-2">🎯</div>
+              <h3 className="font-semibold text-gray-900 mb-1">Calibrated, not inflated</h3>
+              <p className="text-sm text-gray-600">
+                Every score is a real probability of getting an interview, with a 90% confidence interval.
+                When we don't have enough data, we say "Insufficient data" — not "95% match".
+              </p>
+            </div>
+            <div>
+              <div className="text-3xl mb-2">🛂</div>
+              <h3 className="font-semibold text-gray-900 mb-1">Visa data that's actually deep</h3>
+              <p className="text-sm text-gray-600">
+                Per-employer LCA filings, certification rates, prevailing wage checks. Direct from DOL OFLC
+                disclosure data — 4.8M records since 2013.
+              </p>
+            </div>
+            <div>
+              <div className="text-3xl mb-2">📋</div>
+              <h3 className="font-semibold text-gray-900 mb-1">Honest about every step</h3>
+              <p className="text-sm text-gray-600">
+                Apply on company sites with one click — and log outcomes back so we can keep our
+                calibration anchored to what actually happened, not what we hope.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Auth form */}
+      <section id="auth" className="px-4 py-12">
+        <div className="w-full max-w-md mx-auto">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Get started</h2>
+            <p className="text-gray-600 text-sm mt-1">Free during beta. No card required.</p>
+          </div>
 
         <Card>
           <CardHeader>
@@ -279,7 +390,13 @@ export default function Login() {
             </div>
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </section>
+
+      <footer className="px-4 py-8 border-t border-gray-100 text-center text-xs text-gray-500">
+        © 2026 SwipeHire™. Calibrated job matching for international candidates.
+        {" · "}<a href="/honesty" className="hover:underline">Honesty dashboard</a>
+      </footer>
     </div>
   );
 }

@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { apiRequest, getQueryFn } from "@/lib/api";
 import {
   MapPin, Building, Clock, Heart, Bookmark, ExternalLink,
-  CheckCircle, AlertTriangle, Globe, DollarSign, ArrowLeft, Newspaper
+  CheckCircle, AlertTriangle, Globe, DollarSign, ArrowLeft, Newspaper,
+  Sparkles, Chrome, TrendingUp, Briefcase
 } from "lucide-react";
 
 const SUBSCORE_LABELS: Record<string, string> = {
@@ -140,17 +141,55 @@ export function JobDetail({ job, onBack }: Props) {
                 {job.sponsorsVisa && <Badge variant="outline" className="text-purple-700 bg-purple-50">Visa sponsor</Badge>}
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 mt-5 pt-5 border-t border-gray-100">
-                <Button onClick={handleApply} className="flex-1" disabled={apply.isPending}>
-                  <ExternalLink className="w-4 h-4 mr-1.5" />
-                  {apply.isPending ? "Recording..." : job.externalUrl ? "Apply on company site" : "Mark as applied"}
-                </Button>
-                <Button variant="outline" onClick={() => interact.mutate("bookmark")} disabled={interact.isPending}>
-                  <Bookmark className="w-4 h-4 mr-1.5" /> Save
-                </Button>
-                <Button variant="outline" onClick={() => interact.mutate("swipe_right")} disabled={interact.isPending}>
-                  <Heart className="w-4 h-4 mr-1.5" /> Like
-                </Button>
+              {/* Three apply paths */}
+              <div className="mt-5 pt-5 border-t border-gray-100 space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {/* Mode 1: SwipeHire-direct (Tier 1 auto-submit) — coming soon */}
+                  <Button
+                    variant="outline"
+                    className="border-dashed text-gray-400 cursor-not-allowed"
+                    disabled
+                    title="Coming soon — auto-submit via Greenhouse / Lever / Ashby APIs"
+                  >
+                    <Sparkles className="w-4 h-4 mr-1.5" />
+                    Apply via SwipeHire
+                  </Button>
+
+                  {/* Mode 2: Apply on company site (Tier 3 deep-link, current default) */}
+                  <Button
+                    onClick={handleApply}
+                    disabled={apply.isPending || !job.externalUrl}
+                    title={job.externalUrl ? "Open the company posting and record this as applied" : "No external link available"}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-1.5" />
+                    {apply.isPending ? "Recording..." : "Apply on company site"}
+                  </Button>
+
+                  {/* Mode 3: Apply with extension (Tier 2 assisted, when extension is installed) */}
+                  <Button
+                    variant="outline"
+                    className="border-dashed text-gray-400 cursor-not-allowed"
+                    disabled
+                    title="Coming soon — Chrome extension auto-fills any career page"
+                  >
+                    <Chrome className="w-4 h-4 mr-1.5" />
+                    Apply with extension
+                  </Button>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => interact.mutate("bookmark")} disabled={interact.isPending}>
+                    <Bookmark className="w-4 h-4 mr-1.5" /> Save
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => interact.mutate("swipe_right")} disabled={interact.isPending}>
+                    <Heart className="w-4 h-4 mr-1.5" /> Like
+                  </Button>
+                </div>
+
+                <p className="text-[11px] text-gray-400 leading-snug pt-1">
+                  Current path: deep-link to the company's posting + log the application here so we can track outcomes.
+                  SwipeHire-direct submission and the auto-fill extension ship in a future release.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -280,10 +319,134 @@ export function JobDetail({ job, onBack }: Props) {
             </Card>
           )}
 
+          <CompanyHiringStatsCard company={job.company} role={job.title} />
           <CompanyIntelCard company={job.company} />
         </div>
       </div>
     </div>
+  );
+}
+
+function fmtSalary(n: number | null | undefined): string {
+  if (n == null) return "—";
+  if (n >= 1000) return `$${(n / 1000).toFixed(0)}K`;
+  return `$${n}`;
+}
+
+function fmtDate(s: string | null | undefined): string {
+  if (!s) return "—";
+  const d = new Date(s);
+  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  if (days === 0) return "today";
+  if (days === 1) return "1 day ago";
+  if (days < 30) return `${days} days ago`;
+  if (days < 60) return "~1 month ago";
+  if (days < 180) return `~${Math.round(days / 30)} months ago`;
+  return d.toLocaleDateString();
+}
+
+function CompanyHiringStatsCard({ company, role }: { company: string; role: string }) {
+  const url = `/api/companies/${encodeURIComponent(company)}/hiring-stats?role=${encodeURIComponent(role.split(",")[0].trim())}`;
+  const { data } = useQuery<any>({
+    queryKey: [url],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    staleTime: 60 * 60 * 1000,    // 1h client cache
+    enabled: !!company,
+  });
+
+  if (!data?.hasData) return null;
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp className="w-4 h-4 text-primary" />
+          <h2 className="font-semibold text-gray-900">Hiring at {company}</h2>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="bg-gray-50 rounded px-2.5 py-2">
+            <div className="text-[10px] uppercase tracking-wide text-gray-500">Active openings</div>
+            <div className="font-semibold text-gray-900">{data.activeJobs.total}</div>
+            {data.activeJobs.visaSponsor > 0 && (
+              <div className="text-[10px] text-purple-700 mt-0.5">
+                {data.activeJobs.visaSponsor} sponsor visa
+              </div>
+            )}
+          </div>
+          <div className="bg-gray-50 rounded px-2.5 py-2">
+            <div className="text-[10px] uppercase tracking-wide text-gray-500">Posted last 30 days</div>
+            <div className="font-semibold text-gray-900">{data.velocity.last30d}</div>
+            {data.velocity.last90d > data.velocity.last30d && (
+              <div className="text-[10px] text-gray-500 mt-0.5">
+                {data.velocity.last90d} in 90 days · {data.velocity.last180d} in 180
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="text-xs text-gray-600 mb-3">
+          <Clock className="inline w-3 h-3 mr-1" />
+          Most recent posting: <span className="font-medium text-gray-900">{fmtDate(data.velocity.latestPostedAt)}</span>
+        </div>
+
+        {data.roleSpecific && (
+          <div className="border-t border-gray-100 pt-3 mb-3">
+            <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
+              For roles like this
+            </div>
+            <div className="text-sm text-gray-700">
+              {data.roleSpecific.matches} similar opening{data.roleSpecific.matches > 1 ? "s" : ""}
+              {data.roleSpecific.p50SalaryMin && data.roleSpecific.p50SalaryMax && (
+                <> · median band <span className="font-medium">
+                  {fmtSalary(data.roleSpecific.p50SalaryMin)}–{fmtSalary(data.roleSpecific.p50SalaryMax)}
+                </span></>
+              )}
+            </div>
+            {data.roleSpecific.salaryMinLow && data.roleSpecific.salaryMaxHigh && (
+              <div className="text-xs text-gray-500 mt-0.5">
+                Range across all matches: {fmtSalary(data.roleSpecific.salaryMinLow)}–{fmtSalary(data.roleSpecific.salaryMaxHigh)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {data.salary && !data.roleSpecific && (
+          <div className="border-t border-gray-100 pt-3 mb-3">
+            <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
+              Salary across all roles ({data.salary.jobsWithSalary} listings)
+            </div>
+            <div className="text-sm text-gray-700">
+              {fmtSalary(data.salary.min)}–{fmtSalary(data.salary.max)}
+              {data.salary.median && (
+                <span className="text-gray-500"> · median {fmtSalary(data.salary.median)}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {data.topRoles?.length > 0 && (
+          <div className="border-t border-gray-100 pt-3">
+            <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
+              Most common roles
+            </div>
+            <div className="space-y-1">
+              {data.topRoles.slice(0, 4).map((r: any) => (
+                <div key={r.role} className="flex items-center justify-between text-xs">
+                  <span className="text-gray-700">{r.role}</span>
+                  <span className="text-gray-400">{r.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p className="text-[10px] text-gray-400 mt-3 leading-snug">
+          Source: SwipeHire's job index (currently {data.activeJobs.total} {company} listings).
+          Headcount growth and equity data require LinkedIn / Crunchbase access — coming when budget allows.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
