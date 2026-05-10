@@ -1,204 +1,295 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+/**
+ * /jobs (or /) — the discover page.
+ *
+ * Two layouts:
+ *   - Mobile (< md): swipe interface, one card at a time
+ *   - Desktop (>= md): two-column list of scored job rows + sticky filter sidebar.
+ *     Each row clicks through to /jobs/:id.
+ */
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { getQueryFn, apiRequest } from "@/lib/api";
 import { SwipeInterface } from "@/components/SwipeInterface";
-import { ResumeTailoringModal } from "@/components/ResumeTailoringModal";
+import { TopNavigation } from "@/components/TopNavigation";
 import { BottomNavigation } from "@/components/BottomNavigation";
-import { SwipeHireLogo } from "@/components/SwipeHireLogo";
-import { Briefcase, Globe } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Briefcase, Globe, MapPin, Building, Heart, Bookmark, X, ExternalLink } from "lucide-react";
+
+function labelColor(label: string): string {
+  if (label === "Strong fit") return "bg-green-100 text-green-800";
+  if (label === "Promising fit") return "bg-blue-100 text-blue-800";
+  if (label === "Stretch") return "bg-yellow-100 text-yellow-800";
+  if (label === "Insufficient data") return "bg-gray-100 text-gray-700";
+  return "bg-red-100 text-red-700";
+}
+
+function bandColor(value: number): string {
+  if (value >= 0.75) return "bg-green-500";
+  if (value >= 0.5) return "bg-blue-500";
+  if (value >= 0.3) return "bg-yellow-500";
+  return "bg-red-400";
+}
+
+function summarizePref(rp: string | null | undefined): string {
+  if (!rp) return "any work mode";
+  return rp.split(/[,|]+/).map(s => s.trim()).filter(Boolean).map(m =>
+    m === "remote" ? "Remote" : m === "hybrid" ? "Hybrid" : m === "onsite" ? "On-site" : m
+  ).join(" / ");
+}
+
+function summarizeLocations(loc: string | null | undefined): string {
+  if (!loc) return "Anywhere";
+  return loc.split(/[|;\n]+/).map(s => s.trim()).filter(Boolean).join(" · ");
+}
 
 export default function Jobs() {
-  const [showResumeTailoringModal, setShowResumeTailoringModal] = useState(false);
-  const [currentTailoredResume, setCurrentTailoredResume] = useState<any>(null);
-  const [currentJob, setCurrentJob] = useState<any>(null);
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
 
-  const { data: user } = useQuery({
-    queryKey: ['/api/auth/me'],
+  const { data: meData } = useQuery<any>({
+    queryKey: ["/api/auth/me"],
     queryFn: getQueryFn({ on401: "throw" }),
   });
+  const user = meData?.user;
 
-  const { data: jobsData, isLoading } = useQuery({
-    queryKey: ['/api/jobs/feed'],
+  const { data: feedData, isLoading } = useQuery<{ jobs: any[]; count: number }>({
+    queryKey: ["/api/jobs/feed"],
     queryFn: getQueryFn({ on401: "throw" }),
   });
-
-  const { data: statsData } = useQuery({
-    queryKey: ['/api/dashboard/stats'],
-    queryFn: getQueryFn({ on401: "throw" }),
-  });
+  const jobs = feedData?.jobs ?? [];
 
   const interactMutation = useMutation({
-    mutationFn: async ({ jobId, action, matchScore, visaScore }: {
-      jobId: number;
-      action: string;
-      matchScore?: number;
-      visaScore?: number;
-    }) => {
-      const response = await apiRequest("POST", `/api/jobs/${jobId}/interact`, {
+    mutationFn: async ({ jobId, action, matchScore, visaScore }: any) => {
+      const r = await apiRequest("POST", `/api/jobs/${jobId}/interact`, {
         action,
         matchScore: matchScore?.toString(),
         visaScore: visaScore?.toString(),
       });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/jobs/feed'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
-      
-      if (data.showResumeTailoringModal) {
-        setCurrentTailoredResume(data.tailoredResume);
-        setCurrentJob(jobsData?.jobs.find((job: any) => job.id === data.interaction.jobId));
-        setShowResumeTailoringModal(true);
-      }
-    },
-  });
-
-  const applyMutation = useMutation({
-    mutationFn: async (jobId: number) => {
-      const response = await apiRequest("POST", `/api/jobs/${jobId}/apply`);
-      return response.json();
+      return r.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
-      setShowResumeTailoringModal(false);
+      qc.invalidateQueries({ queryKey: ["/api/jobs/feed"] });
+      qc.invalidateQueries({ queryKey: ["/api/jobs/liked"] });
+      qc.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
   });
 
-  const handleSwipe = (job: any, direction: 'left' | 'right') => {
-    const action = direction === 'right' ? 'swipe_right' : 'swipe_left';
+  const handleSwipe = (job: any, dir: "left" | "right") => {
     interactMutation.mutate({
       jobId: job.id,
-      action,
+      action: dir === "right" ? "swipe_right" : "swipe_left",
       matchScore: job.matchScore,
       visaScore: job.visaScore,
     });
   };
-
   const handleBookmark = (job: any) => {
-    interactMutation.mutate({
-      jobId: job.id,
-      action: 'bookmark',
-    });
+    interactMutation.mutate({ jobId: job.id, action: "bookmark", matchScore: job.matchScore });
   };
-
-  const handleApply = (jobId: number) => {
-    applyMutation.mutate(jobId);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-lg">Loading jobs...</div>
-      </div>
-    );
-  }
-
-  const jobs = jobsData?.jobs || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5">
-      {/* Navigation Header */}
-      <nav className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <SwipeHireLogo size="md" />
-          <button className="p-2 rounded-lg hover:bg-gray-100">
-            <div className="w-6 h-6 bg-brand-gray rounded-full"></div>
-          </button>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+      <TopNavigation user={user} />
 
-      {/* Main Container */}
-      <div className="max-w-md mx-auto pb-20">
-        {/* User Status Bar */}
-        {user && (
-          <div className="bg-white mx-4 mt-4 p-4 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-success rounded-full"></div>
-                <span className="text-sm text-gray-600">
-                  Looking for: <span className="font-medium text-gray-900">
-                    {user.targetJobTitle || 'Any position'}
-                  </span>
+      {/* === MOBILE: swipe interface === */}
+      <div className="md:hidden">
+        <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-30">
+          {user && (
+            <div className="max-w-md mx-auto flex items-center justify-between text-sm">
+              <span className="text-gray-600 truncate">
+                Looking for: <span className="font-medium text-gray-900">{user.targetJobTitle ?? "Any role"}</span>
+              </span>
+              {user.visaStatus && !["us_citizen", "green_card", "asylum_ead", "citizen"].includes(user.visaStatus) && (
+                <span className="inline-flex items-center gap-1 bg-secondary/10 px-2 py-0.5 rounded-full text-secondary text-xs font-medium ml-2 shrink-0">
+                  <Globe className="w-3 h-3" />
+                  {user.visaStatus.replace(/_/g, "-").toUpperCase()}
                 </span>
-              </div>
-              {user.visaStatus && !['us_citizen', 'green_card', 'asylum_ead', 'citizen'].includes(user.visaStatus) && (
-                <div className="flex items-center space-x-1 bg-secondary/10 px-2 py-1 rounded-full">
-                  <Globe className="w-3 h-3 text-secondary" />
-                  <span className="text-xs font-medium text-secondary">
-                    {user.visaStatus.replace(/_/g, '-').toUpperCase()}
-                  </span>
-                </div>
               )}
             </div>
-            <div className="flex items-center space-x-4 text-sm text-gray-500">
-              <span>
-                📍 {user.preferredLocation || 'Flexible location'}
-              </span>
-              <span>
-                🏠 {(user.remotePreference || 'any').split(/[,|]+/).map((m: string) =>
-                      m.trim() === 'remote' ? 'Remote' :
-                      m.trim() === 'hybrid' ? 'Hybrid' :
-                      m.trim() === 'onsite' ? 'On-site' : m
-                    ).join(' / ')}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Job Swipe Interface */}
-        {jobs.length > 0 ? (
-          <SwipeInterface
-            jobs={jobs}
-            onSwipe={handleSwipe}
-            onBookmark={handleBookmark}
-            user={user}
-          />
-        ) : (
-          <Card className="mx-4 mt-6">
-            <CardContent className="p-8 text-center">
-              <div className="text-gray-500 mb-4">
-                <Briefcase className="w-12 h-12 mx-auto mb-2" />
-                <p>No more jobs available right now.</p>
-                <p className="text-sm mt-2">Check back later for new opportunities!</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Daily Stats */}
-        {statsData?.todayStats && (
-          <div className="mx-4 mt-8 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Today's Progress</h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-xl font-bold text-primary">{statsData.todayStats.viewed}</div>
-                <div className="text-xs text-gray-500">Viewed</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-success">{statsData.todayStats.liked}</div>
-                <div className="text-xs text-gray-500">Liked</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-warning">{statsData.todayStats.applied}</div>
-                <div className="text-xs text-gray-500">Applied</div>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
+        <div className="max-w-md mx-auto pb-4">
+          {isLoading && <div className="text-center py-12 text-gray-500">Loading jobs…</div>}
+          {!isLoading && jobs.length > 0 ? (
+            <SwipeInterface jobs={jobs} onSwipe={handleSwipe} onBookmark={handleBookmark} user={user} />
+          ) : !isLoading && (
+            <Card className="mx-4 mt-6">
+              <CardContent className="p-8 text-center text-gray-500">
+                <Briefcase className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                <p>No more jobs right now.</p>
+                <p className="text-sm mt-1">Check back later.</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
-      {/* Resume Tailoring Modal */}
-      <ResumeTailoringModal
-        isOpen={showResumeTailoringModal}
-        onClose={() => setShowResumeTailoringModal(false)}
-        job={currentJob}
-        tailoredResume={currentTailoredResume}
-        onApply={handleApply}
-      />
+      {/* === DESKTOP: list view === */}
+      <div className="hidden md:block max-w-6xl mx-auto px-6 py-6">
+        <div className="grid grid-cols-12 gap-6">
+          {/* Sidebar — user profile summary */}
+          <aside className="col-span-3 space-y-4 sticky top-20 self-start">
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-gray-900 text-sm mb-3">Looking for</h3>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <div className="text-xs text-gray-500">Role</div>
+                    <div className="font-medium text-gray-900">{user?.targetJobTitle ?? "Any role"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Locations</div>
+                    <div className="font-medium text-gray-900 text-sm">{summarizeLocations(user?.preferredLocation)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Mode</div>
+                    <div className="font-medium text-gray-900">{summarizePref(user?.remotePreference)}</div>
+                  </div>
+                  {user?.visaStatus && !["us_citizen", "green_card", "asylum_ead", "citizen"].includes(user.visaStatus) && (
+                    <div>
+                      <div className="text-xs text-gray-500">Visa</div>
+                      <div className="font-medium text-gray-900 inline-flex items-center gap-1">
+                        <Globe className="w-3.5 h-3.5 text-purple-600" />
+                        {user.visaStatus.replace(/_/g, "-").toUpperCase()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <Link href="/profile">
+                  <a className="block text-xs text-primary hover:underline mt-3">Edit preferences →</a>
+                </Link>
+              </CardContent>
+            </Card>
+          </aside>
 
-      {/* Bottom Navigation */}
+          {/* Job list */}
+          <main className="col-span-9">
+            <header className="mb-4 flex items-baseline justify-between">
+              <h1 className="text-2xl font-bold text-gray-900">Discover jobs</h1>
+              <span className="text-sm text-gray-500">
+                {isLoading ? "" : `${jobs.length} scored`}
+              </span>
+            </header>
+
+            {isLoading && <div className="text-gray-500 py-8">Loading scored jobs…</div>}
+
+            {!isLoading && jobs.length === 0 && (
+              <Card>
+                <CardContent className="py-12 text-center text-gray-500">
+                  <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>No more jobs to score right now.</p>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="space-y-3">
+              {jobs.map(job => (
+                <Card key={job.id} className="hover:border-primary hover:shadow-sm transition-all">
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          {job.label && (
+                            <Badge className={`${labelColor(job.label)} border-0 text-xs`}>
+                              {job.label}
+                            </Badge>
+                          )}
+                          {job.isRemote && <Badge variant="outline" className="text-green-700 bg-green-50 text-xs">Remote</Badge>}
+                          {job.isHybrid && <Badge variant="outline" className="text-blue-700 bg-blue-50 text-xs">Hybrid</Badge>}
+                          {job.sponsorsVisa && <Badge variant="outline" className="text-purple-700 bg-purple-50 text-xs">Visa sponsor</Badge>}
+                        </div>
+                        <Link href={`/jobs/${job.id}`}>
+                          <h3 className="font-semibold text-gray-900 text-lg leading-snug hover:text-primary cursor-pointer">{job.title}</h3>
+                        </Link>
+                        <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
+                          <span className="inline-flex items-center gap-1">
+                            <Building className="w-3.5 h-3.5" /> {job.company}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5" /> {job.location}
+                          </span>
+                        </div>
+
+                        {/* Top reason inline */}
+                        {job.explain?.topReasonsToApply?.[0] && (
+                          <p className="text-xs text-green-700 mt-2 line-clamp-1">
+                            ✓ {job.explain.topReasonsToApply[0]}
+                          </p>
+                        )}
+                        {job.explain?.topReasonsToHesitate?.[0] && (
+                          <p className="text-xs text-yellow-700 line-clamp-1">
+                            ⚠ {job.explain.topReasonsToHesitate[0]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="text-right shrink-0 w-28">
+                        <div className="text-3xl font-bold text-primary leading-none">{job.matchScore}%</div>
+                        <div className="text-xs text-gray-500 mt-0.5 mb-2">match</div>
+
+                        {/* Mini subscore bars */}
+                        {job.subscores && (
+                          <div className="space-y-1">
+                            {(["skillsSemantic", "titleAlignment", "locationFit"] as const).map(k => {
+                              const s = job.subscores[k];
+                              if (!s || s.weight === 0) return null;
+                              return (
+                                <div key={k}>
+                                  <div className="w-full bg-gray-100 rounded-full h-1">
+                                    <div className={`${bandColor(s.value)} h-1 rounded-full`} style={{ width: `${s.value * 100}%` }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions row */}
+                    <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100">
+                      <Link href={`/jobs/${job.id}`}>
+                        <a className="text-sm text-primary hover:underline font-medium">View full details →</a>
+                      </Link>
+                      <div className="flex-1" />
+                      <button
+                        onClick={() => handleBookmark(job)}
+                        className="text-sm text-gray-600 hover:text-yellow-600 inline-flex items-center gap-1"
+                      >
+                        <Bookmark className="w-4 h-4" /> Save
+                      </button>
+                      <button
+                        onClick={() => handleSwipe(job, "right")}
+                        className="text-sm text-gray-600 hover:text-green-600 inline-flex items-center gap-1"
+                      >
+                        <Heart className="w-4 h-4" /> Like
+                      </button>
+                      <button
+                        onClick={() => handleSwipe(job, "left")}
+                        className="text-sm text-gray-600 hover:text-red-600 inline-flex items-center gap-1"
+                      >
+                        <X className="w-4 h-4" /> Skip
+                      </button>
+                      {job.externalUrl && (
+                        <a
+                          href={job.externalUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-sm text-gray-600 hover:text-primary inline-flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-4 h-4" /> Posting
+                        </a>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </main>
+        </div>
+      </div>
+
       <BottomNavigation currentPath="/" />
     </div>
   );

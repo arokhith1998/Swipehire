@@ -170,6 +170,51 @@ async function buildFeed(req: Request, res: Response) {
 jobsRouter.get('/api/jobs', buildFeed);
 jobsRouter.get('/api/jobs/feed', buildFeed);
 
+/**
+ * Liked jobs — anything the user swiped right OR bookmarked, latest first.
+ * Returned with the same flat shape as the feed so the same JobCard works.
+ */
+jobsRouter.get('/api/jobs/liked', async (req: Request, res: Response) => {
+  const userId = authedUserId(req);
+  if (!userId) return res.status(401).json({ error: 'not_authenticated' });
+
+  const r = await db.execute(sql`
+    SELECT DISTINCT ON (j.id)
+           j.id, j.title, j.company, j.location, j.description, j.requirements,
+           j.salary_min, j.salary_max, j.type, j.is_remote, j.is_hybrid, j.sponsors_visa,
+           j.h1b_approval_rate, j.recent_sponsorship_count, j.external_url, j.created_at,
+           i.action AS interaction_action,
+           i.match_score AS interaction_match_score,
+           i.created_at AS interaction_at
+    FROM user_job_interactions i
+    JOIN jobs j ON j.id = i.job_id
+    WHERE i.user_id = ${userId}
+      AND i.action IN ('swipe_right', 'bookmark')
+    ORDER BY j.id, i.created_at DESC
+    LIMIT 200
+  `);
+
+  const rawRows = r.rows ?? [];
+  if (rawRows.length === 0) return res.json({ jobs: [], count: 0 });
+
+  const user = await loadScoringUser(userId);
+  if (!user) return res.status(401).json({ error: 'user_not_found' });
+
+  const jobs = rawRows.map(rowToScoringJob);
+  const matches = await scoreFeedForUser(user, jobs, { skipAuthenticity: true });
+
+  // Sort by interaction time (most recent first), not match score.
+  const merged = jobs
+    .map((j, i) => ({
+      ...flattenForUi(j, matches[i], rawRows[i]),
+      interactionAction: (rawRows[i] as any).interaction_action,
+      interactionAt: (rawRows[i] as any).interaction_at,
+    }))
+    .sort((a, b) => new Date(b.interactionAt).getTime() - new Date(a.interactionAt).getTime());
+
+  res.json({ jobs: merged, count: merged.length });
+});
+
 jobsRouter.get('/api/jobs/:id', async (req: Request, res: Response) => {
   const userId = authedUserId(req);
   if (!userId) return res.status(401).json({ error: 'not_authenticated' });

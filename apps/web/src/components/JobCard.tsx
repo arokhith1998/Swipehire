@@ -29,7 +29,25 @@ export function JobCard({
     return `Up to $${(max! / 1000).toFixed(0)}K`;
   };
 
-  const showVisaScore = user?.visaStatus && user.visaStatus !== 'citizen';
+  const showVisaScore = user?.visaStatus && !['us_citizen', 'green_card', 'asylum_ead', 'citizen'].includes(user.visaStatus);
+
+  const subscores = job.subscores ?? {};
+  const subscoreRow = (key: string, label: string) => {
+    const s = subscores[key];
+    if (!s || s.weight === 0) return null;
+    return (
+      <div key={key} className="flex items-center gap-2">
+        <span className="text-xs text-gray-600 w-24 shrink-0">{label}</span>
+        <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+          <div
+            className="bg-primary h-1.5 rounded-full"
+            style={{ width: `${Math.round((s.value ?? 0) * 100)}%` }}
+          />
+        </div>
+        <span className="text-xs text-gray-500 w-8 text-right">{Math.round((s.value ?? 0) * 100)}%</span>
+      </div>
+    );
+  };
 
   return (
     <Card 
@@ -69,22 +87,23 @@ export function JobCard({
 
         {/* Match Scores */}
         <div className="space-y-3 mb-6">
-          {/* Match Score (for all users) */}
+          {/* Match Score with REAL subscore bars */}
           <div className="bg-success/10 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-success">Match Score</span>
-              <span className="text-lg font-bold text-success">{job.matchScore}%</span>
+              <div className="text-right">
+                <span className="text-lg font-bold text-success">{job.matchScore}%</span>
+                {job.label && (
+                  <div className="text-[10px] text-success/80 leading-none">{job.label}</div>
+                )}
+              </div>
             </div>
-            <div className="w-full bg-success/20 rounded-full h-2">
-              <div 
-                className="bg-success h-2 rounded-full transition-all duration-300" 
-                style={{ width: `${job.matchScore}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-xs text-success/70 mt-1">
-              <span>Skills Match</span>
-              <span>Title Fit</span>
-              <span>Location</span>
+            <div className="space-y-1.5">
+              {subscoreRow('skillsSemantic', 'Skills')}
+              {subscoreRow('titleAlignment', 'Title')}
+              {subscoreRow('locationFit', 'Location')}
+              {subscoreRow('seniorityFit', 'Seniority')}
+              {subscoreRow('salaryFit', 'Salary')}
             </div>
           </div>
 

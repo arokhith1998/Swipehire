@@ -10,6 +10,8 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Onboarding from "@/pages/onboarding";
 import Jobs from "@/pages/jobs";
+import Liked from "@/pages/liked";
+import JobDetailPage from "@/pages/job-detail";
 import Dashboard from "@/pages/dashboard";
 import Profile from "@/pages/profile";
 import AdminPage from "@/pages/admin";
@@ -127,6 +129,16 @@ function AppContent() {
       <Route path="/">
         <AuthWrapper>
           <Jobs />
+        </AuthWrapper>
+      </Route>
+      <Route path="/liked">
+        <AuthWrapper>
+          <Liked />
+        </AuthWrapper>
+      </Route>
+      <Route path="/jobs/:id">
+        <AuthWrapper>
+          <JobDetailPage />
         </AuthWrapper>
       </Route>
       <Route path="/dashboard">
