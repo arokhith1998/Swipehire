@@ -14,8 +14,8 @@
 
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { sql } from 'drizzle-orm';
-import { db } from '@swipehire/db';
+import { eq } from 'drizzle-orm';
+import { db, users } from '@swipehire/db';
 
 export const profileRouter: Router = Router();
 
@@ -55,48 +55,61 @@ async function updateProfile(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // Build dynamic UPDATE — only set the columns the caller actually sent.
-  await db.execute(sql`
-    UPDATE users SET
-      first_name           = COALESCE(${p.firstName ?? null}, first_name),
-      last_name            = COALESCE(${p.lastName ?? null}, last_name),
-      phone                = COALESCE(${p.phone ?? null}, phone),
-      location             = COALESCE(${p.location ?? null}, location),
-      target_job_title     = COALESCE(${p.targetJobTitle ?? null}, target_job_title),
-      preferred_location   = COALESCE(${p.preferredLocation ?? null}, preferred_location),
-      visa_status          = COALESCE(${p.visaStatus ?? null}, visa_status),
-      job_title            = COALESCE(${p.jobTitle ?? null}, job_title),
-      experience           = COALESCE(${p.experience ?? null}, experience),
-      expected_salary      = COALESCE(${p.expectedSalary ?? null}, expected_salary),
-      bio                  = COALESCE(${p.bio ?? null}, bio),
-      education            = COALESCE(${p.education ?? null}, education),
-      remote_preference    = COALESCE(${p.remotePreference ?? null}, remote_preference),
-      skills               = COALESCE(${p.skills ?? null}, skills),
-      is_profile_complete  = COALESCE(${p.isProfileComplete ?? null}, is_profile_complete)
-    WHERE id = ${userId}
-  `);
+  // Build a partial update object — only set the columns the caller actually
+  // sent. Drizzle's typed update knows how to bind text[] (skills) to Postgres,
+  // unlike the raw `sql` template which crashes on JS arrays.
+  const updates: Record<string, any> = {};
+  if (p.firstName !== undefined) updates.firstName = p.firstName;
+  if (p.lastName !== undefined) updates.lastName = p.lastName;
+  if (p.phone !== undefined) updates.phone = p.phone;
+  if (p.location !== undefined) updates.location = p.location;
+  if (p.targetJobTitle !== undefined) updates.targetJobTitle = p.targetJobTitle;
+  if (p.preferredLocation !== undefined) updates.preferredLocation = p.preferredLocation;
+  if (p.visaStatus !== undefined) updates.visaStatus = p.visaStatus;
+  if (p.jobTitle !== undefined) updates.jobTitle = p.jobTitle;
+  if (p.experience !== undefined) updates.experience = p.experience;
+  if (p.expectedSalary !== undefined) updates.expectedSalary = p.expectedSalary;
+  if (p.bio !== undefined) updates.bio = p.bio;
+  if (p.education !== undefined) updates.education = p.education;
+  if (p.remotePreference !== undefined) updates.remotePreference = p.remotePreference;
+  if (p.skills !== undefined) updates.skills = p.skills;
+  if (p.isProfileComplete !== undefined) updates.isProfileComplete = p.isProfileComplete;
 
-  const r = await db.execute(sql`
-    SELECT id, email, first_name, last_name, target_job_title, preferred_location,
-           visa_status, experience, expected_salary, remote_preference, skills,
-           is_profile_complete
-    FROM users WHERE id = ${userId} LIMIT 1
-  `);
-  const u = r.rows[0] as any;
+  await db.update(users).set(updates).where(eq(users.id, userId));
+
+  const updated = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      targetJobTitle: users.targetJobTitle,
+      preferredLocation: users.preferredLocation,
+      visaStatus: users.visaStatus,
+      experience: users.experience,
+      expectedSalary: users.expectedSalary,
+      remotePreference: users.remotePreference,
+      skills: users.skills,
+      isProfileComplete: users.isProfileComplete,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const u = updated[0];
   res.json({
     user: {
       id: u.id,
       email: u.email,
-      firstName: u.first_name,
-      lastName: u.last_name,
-      targetJobTitle: u.target_job_title,
-      preferredLocation: u.preferred_location,
-      visaStatus: u.visa_status,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      targetJobTitle: u.targetJobTitle,
+      preferredLocation: u.preferredLocation,
+      visaStatus: u.visaStatus,
       experience: u.experience,
-      expectedSalary: u.expected_salary,
-      remotePreference: u.remote_preference,
+      expectedSalary: u.expectedSalary,
+      remotePreference: u.remotePreference,
       skills: u.skills ?? [],
-      isProfileComplete: u.is_profile_complete ?? false,
+      isProfileComplete: u.isProfileComplete ?? false,
     },
   });
 }
