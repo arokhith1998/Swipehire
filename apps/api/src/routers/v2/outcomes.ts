@@ -91,6 +91,8 @@ outcomesRouter.post('/api/applications/:id/outcome', async (req: Request, res: R
   //    We re-score (vs. capturing at apply-time) to keep the architecture simple — the
   //    user's profile is roughly the same as when they applied, and the matcher is
   //    deterministic given inputs.
+  let calibrationLogged = false;
+  let calibrationError: string | null = null;
   try {
     const jobRows = await db.execute(sql`SELECT * FROM jobs WHERE id = ${jobId} LIMIT 1`);
     const jrow = jobRows.rows[0] as any;
@@ -138,11 +140,12 @@ outcomesRouter.post('/api/applications/:id/outcome', async (req: Request, res: R
         VALUES (${userId}, ${jobId}, ${JSON.stringify(match)}::jsonb, ${match.explain.modelVersion},
                 ${outcome}, NOW(), 'user')
       `);
+      calibrationLogged = true;
     }
   } catch (err: any) {
-    // Don't fail the user-facing request if calibration write fails — log and continue.
+    calibrationError = err.message?.slice(0, 200) ?? 'unknown';
     console.warn('[outcomes] failed to persist score_outcomes:', err.message);
   }
 
-  res.json({ ok: true, applicationId: appId, outcome });
+  res.json({ ok: true, applicationId: appId, outcome, calibrationLogged, calibrationError });
 });
