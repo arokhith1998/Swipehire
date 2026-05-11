@@ -95,6 +95,11 @@ export function JobDetail({ job, onBack }: Props) {
     ? Object.entries(job.subscores).filter(([, s]: [string, any]) => s.weight > 0)
     : [];
 
+  // Whether the JD is expanded — drives layout reflow. Long JD (>700 chars) starts
+  // collapsed so the right-side intel cards can spill into the wider layout below.
+  const longJd = (job.description?.length ?? 0) > 700;
+  const [jdExpanded, setJdExpanded] = useState(!longJd);
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
       {onBack && (
@@ -106,9 +111,9 @@ export function JobDetail({ job, onBack }: Props) {
         </button>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* === LEFT 2/3: job description === */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className={jdExpanded ? "grid grid-cols-1 lg:grid-cols-3 gap-6" : "space-y-6"}>
+        {/* === HEADER + DESCRIPTION column === */}
+        <div className={jdExpanded ? "lg:col-span-2 space-y-6" : "space-y-6"}>
           <Card>
             <CardContent className="p-6">
               <div className="flex items-start justify-between gap-3 mb-3">
@@ -195,7 +200,11 @@ export function JobDetail({ job, onBack }: Props) {
             </CardContent>
           </Card>
 
-          <CollapsibleDescription description={job.description} />
+          <CollapsibleDescription
+            description={job.description}
+            expanded={jdExpanded}
+            onToggle={() => setJdExpanded(v => !v)}
+          />
 
           {/* Requirements */}
           {job.requirements && job.requirements.length > 0 && (
@@ -212,8 +221,8 @@ export function JobDetail({ job, onBack }: Props) {
           )}
         </div>
 
-        {/* === RIGHT 1/3: match analysis === */}
-        <div className="space-y-6">
+        {/* === INTEL column: right-side when expanded, 2-col grid below when collapsed === */}
+        <div className={jdExpanded ? "space-y-6" : "grid grid-cols-1 md:grid-cols-2 gap-6 items-start"}>
           {typeof job.matchScore === "number" && (
             <Card>
               <CardContent className="p-6">
@@ -275,42 +284,7 @@ export function JobDetail({ job, onBack }: Props) {
             </Card>
           )}
 
-          {job.visaIntel && (
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Globe className="w-4 h-4 text-purple-600" />
-                  <h2 className="font-semibold text-gray-900">Visa intelligence</h2>
-                </div>
-                <p className="text-sm text-gray-700">{job.visaIntel.summary}</p>
-                {job.visaIntel.stats24mo?.totalLcas > 0 && (
-                  <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-                    <div className="bg-gray-50 rounded px-2 py-1.5">
-                      <div className="text-gray-500">LCAs (24 mo)</div>
-                      <div className="font-semibold">{job.visaIntel.stats24mo.totalLcas}</div>
-                    </div>
-                    <div className="bg-gray-50 rounded px-2 py-1.5">
-                      <div className="text-gray-500">Approved</div>
-                      <div className="font-semibold">
-                        {job.visaIntel.certificationRate24mo
-                          ? `${Math.round(job.visaIntel.certificationRate24mo * 100)}%`
-                          : "—"}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {job.visaIntel.warnings?.length > 0 && (
-                  <ul className="mt-3 space-y-1">
-                    {job.visaIntel.warnings.map((w: string, i: number) => (
-                      <li key={i} className="text-xs text-yellow-800 bg-yellow-50 rounded px-2 py-1.5">
-                        ⚠️ {w}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {job.visaIntel && <VisaIntelCard intel={job.visaIntel} role={job.title} company={job.company} />}
 
           <CompanyHiringStatsCard company={job.company} role={job.title} />
           <LevelsFyiCard company={job.company} role={job.title} />
@@ -326,6 +300,108 @@ function fmtSalary(n: number | null | undefined): string {
   if (n == null) return "—";
   if (n >= 1000) return `$${(n / 1000).toFixed(0)}K`;
   return `$${n}`;
+}
+
+function VisaIntelCard({ intel, role, company }: { intel: any; role: string; company: string }) {
+  const has24mo = intel.stats24mo?.totalLcas > 0;
+  const roleSpecific = intel.roleSpecific;
+  const yearTotals: Array<{ year: number; totalLcas: number; certified: number }> = intel.yearTotals ?? [];
+  const lcas2025 = yearTotals.find(y => y.year === 2025);
+  const certRatePct = intel.certificationRate24mo != null
+    ? `${Math.round(intel.certificationRate24mo * 100)}%` : "—";
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Globe className="w-4 h-4 text-purple-600" />
+          <h2 className="font-semibold text-gray-900">Visa intelligence</h2>
+        </div>
+        <p className="text-sm text-gray-700">{intel.summary}</p>
+
+        {has24mo && (
+          <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+            <div className="bg-gray-50 rounded px-2.5 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-gray-500">Company LCAs (24 mo)</div>
+              <div className="font-semibold text-gray-900 text-base">{intel.stats24mo.totalLcas.toLocaleString()}</div>
+            </div>
+            <div className="bg-gray-50 rounded px-2.5 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-gray-500">Approved</div>
+              <div className="font-semibold text-gray-900 text-base">{certRatePct}</div>
+            </div>
+            <div className="bg-gray-50 rounded px-2.5 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-gray-500">2025 H-1B filings</div>
+              <div className="font-semibold text-gray-900 text-base">
+                {lcas2025 ? lcas2025.totalLcas.toLocaleString() : "0"}
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded px-2.5 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-gray-500">Median wage</div>
+              <div className="font-semibold text-gray-900 text-base">
+                {intel.stats24mo.medianWageOffered
+                  ? `$${Math.round(intel.stats24mo.medianWageOffered / 1000)}K`
+                  : "—"}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* For THIS role specifically */}
+        {(intel.fein || roleSpecific) && (
+          <div className="border-t border-gray-100 mt-3 pt-3">
+            <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+              For this role {roleSpecific?.socCode && <span className="text-gray-400 font-normal normal-case">(SOC {roleSpecific.socCode})</span>}
+            </div>
+            {roleSpecific?.found ? (
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">{company} LCAs for this SOC (24 mo)</span>
+                  <span className="font-medium text-gray-900">{roleSpecific.totalLcas24mo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Approved</span>
+                  <span className="font-medium text-gray-900">
+                    {roleSpecific.totalLcas24mo > 0
+                      ? `${Math.round((roleSpecific.certified / roleSpecific.totalLcas24mo) * 100)}%`
+                      : "—"}
+                  </span>
+                </div>
+                {roleSpecific.medianWageOffered && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Median wage offered</span>
+                    <span className="font-medium text-gray-900">${Math.round(roleSpecific.medianWageOffered / 1000)}K</span>
+                  </div>
+                )}
+                {roleSpecific.lastSponsoredAt && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Last sponsored for this SOC</span>
+                    <span className="font-medium text-gray-900">{new Date(roleSpecific.lastSponsoredAt).toLocaleDateString()}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">
+                No record of {company} sponsoring an H-1B in this exact SOC code in the last 24 months.
+                {has24mo && (
+                  <span className="text-gray-500"> They have filed under other SOCs — see company numbers above.</span>
+                )}
+              </p>
+            )}
+          </div>
+        )}
+
+        {intel.warnings?.length > 0 && (
+          <ul className="mt-3 space-y-1">
+            {intel.warnings.map((w: string, i: number) => (
+              <li key={i} className="text-xs text-yellow-800 bg-yellow-50 rounded px-2 py-1.5">
+                ⚠️ {w}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function fmtDate(s: string | null | undefined): string {
@@ -694,9 +770,16 @@ function LevelsFyiCard({ company, role }: { company: string; role: string }) {
   );
 }
 
-/** Collapsible job description — show first ~600 chars, expand on Read more. */
-function CollapsibleDescription({ description }: { description?: string }) {
-  const [expanded, setExpanded] = useState(false);
+/** Collapsible job description — controlled by parent so layout can reflow. */
+function CollapsibleDescription({
+  description,
+  expanded,
+  onToggle,
+}: {
+  description?: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const text = description ?? '';
   const PREVIEW_CHARS = 600;
   const needsCollapse = text.length > PREVIEW_CHARS + 100;
@@ -719,10 +802,10 @@ function CollapsibleDescription({ description }: { description?: string }) {
         {needsCollapse && (
           <button
             type="button"
-            onClick={() => setExpanded(v => !v)}
+            onClick={onToggle}
             className="mt-3 text-sm font-medium text-primary hover:text-primary/80 inline-flex items-center gap-1"
           >
-            {expanded ? 'Read less' : `Read more (${text.length.toLocaleString()} chars)`}
+            {expanded ? 'Read less' : 'Read more'}
           </button>
         )}
       </CardContent>

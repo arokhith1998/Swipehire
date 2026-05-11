@@ -30,6 +30,27 @@ export const visaIntelSchema = z.object({
   /** Days since this employer last filed an LCA in this SOC. NULL if never. */
   daysSinceLastSponsored: z.number().int().min(0).nullable(),
 
+  /**
+   * Per-role visa stats: filings for THIS SOC specifically. Distinct from
+   * stats24mo when the SOC fallback was used to find the company.
+   */
+  roleSpecific: z.object({
+    socCode: z.string().nullable(),
+    totalLcas24mo: z.number().int().min(0),
+    certified: z.number().int().min(0),
+    denied: z.number().int().min(0),
+    medianWageOffered: z.number().nullable(),
+    lastSponsoredAt: z.string().datetime().nullable(),
+    found: z.boolean(),                  // false if no record for this exact SOC
+  }).optional(),
+
+  /** Calendar-year LCA totals at the company (any SOC). */
+  yearTotals: z.object({
+    year: z.number().int(),
+    totalLcas: z.number().int().min(0),
+    certified: z.number().int().min(0),
+  }).array().optional(),
+
   /** Safe-harbor: is the job's salary at or above the prevailing wage Level II for this SOC + metro? */
   salaryMeetsPrevailingWage: z.boolean().nullable(),
 

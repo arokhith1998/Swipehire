@@ -138,14 +138,32 @@ export async function fetchVisaIntel(
       daysSinceLastSponsored: null,
       salaryMeetsPrevailingWage: null,
       prevailingWageLevelIi: null,
+      roleSpecific: {
+        socCode,
+        totalLcas24mo: 0,
+        certified: 0,
+        denied: 0,
+        medianWageOffered: null,
+        lastSponsoredAt: null,
+        found: false,
+      },
+      yearTotals: [],
       summary,
       warnings,
       confidence: job.sponsorsVisa ? 0.4 : 0.1,
     };
   }
 
-  const stats = (socCode ? await getEmployerStats(fein, socCode) : null)
-    ?? await getEmployerStats(fein, null);
+  // Try SOC-specific first, fall back to per-FEIN aggregate (soc_code IS NULL).
+  const socStats = socCode ? await getEmployerStats(fein, socCode) : null;
+  const stats = socStats ?? await getEmployerStats(fein, null);
+
+  // Role-specific stats (can be null if employer never filed under this SOC).
+  // We always populate roleSpecific so the UI can say "no record for this SOC".
+  const roleSpecific = await fetchRoleSpecificStats(fein, socCode);
+
+  // Calendar-year totals over the last 2 years (any SOC).
+  const yearTotals = await fetchYearTotals(fein);
 
   // Prevailing wage check
   const pw = await getPrevailingWage(socCode, job.location);
@@ -189,10 +207,92 @@ export async function fetchVisaIntel(
     daysSinceLastSponsored: stats24mo.lastSponsoredAt ? daysSince(stats24mo.lastSponsoredAt) : null,
     salaryMeetsPrevailingWage: salaryMeetsPw,
     prevailingWageLevelIi: pw,
+    roleSpecific,
+    yearTotals,
     summary,
     warnings,
     confidence: stats24mo.totalLcas >= 5 ? 0.9 : stats24mo.totalLcas >= 1 ? 0.5 : 0.2,
   };
+}
+
+/**
+ * LCAs filed by this employer for THIS specific SOC. Distinct from stats24mo
+ * which falls back to per-FEIN aggregate when the SOC doesn't match.
+ *
+ * The DOL XLSX stores SOCs as '15-1252.00'; our classifier returns '15-1252'.
+ * The rollup normalizes to the no-suffix form, so we query with no suffix here.
+ */
+async function fetchRoleSpecificStats(fein: string, socCode: string | null) {
+  if (!socCode) {
+    return {
+      socCode: null,
+      totalLcas24mo: 0,
+      certified: 0,
+      denied: 0,
+      medianWageOffered: null,
+      lastSponsoredAt: null,
+      found: false,
+    };
+  }
+  try {
+    const r = await db.execute(sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE decision IN ('Certified', 'Certified - Withdrawn'))::int AS certified,
+        COUNT(*) FILTER (WHERE decision = 'Denied')::int AS denied,
+        percentile_cont(0.5) WITHIN GROUP (ORDER BY wage_offered) AS median,
+        MAX(decision_date) AS last
+      FROM visa.lca_records
+      WHERE fein = ${fein}
+        AND regexp_replace(soc_code, '\\.00$', '') = ${socCode}
+        AND decision_date >= NOW() - INTERVAL '24 months'
+    `);
+    const row = r.rows?.[0] as any;
+    const total = row?.total ?? 0;
+    return {
+      socCode,
+      totalLcas24mo: total,
+      certified: row?.certified ?? 0,
+      denied: row?.denied ?? 0,
+      medianWageOffered: row?.median ? Number(row.median) : null,
+      lastSponsoredAt: row?.last ?? null,
+      found: total > 0,
+    };
+  } catch {
+    return {
+      socCode,
+      totalLcas24mo: 0,
+      certified: 0,
+      denied: 0,
+      medianWageOffered: null,
+      lastSponsoredAt: null,
+      found: false,
+    };
+  }
+}
+
+/** Calendar-year LCA totals at this employer (any SOC) for last 2 years. */
+async function fetchYearTotals(fein: string): Promise<Array<{ year: number; totalLcas: number; certified: number }>> {
+  try {
+    const r = await db.execute(sql`
+      SELECT
+        EXTRACT(YEAR FROM decision_date)::int AS year,
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE decision IN ('Certified', 'Certified - Withdrawn'))::int AS certified
+      FROM visa.lca_records
+      WHERE fein = ${fein}
+        AND decision_date >= NOW() - INTERVAL '24 months'
+      GROUP BY year
+      ORDER BY year DESC
+    `);
+    return (r.rows ?? []).map((row: any) => ({
+      year: row.year,
+      totalLcas: row.total,
+      certified: row.certified,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 async function getPrevailingWage(socCode: string | null, location: string): Promise<number | null> {
