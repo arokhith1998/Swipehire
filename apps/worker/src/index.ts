@@ -96,6 +96,47 @@ new Worker('greenhouse-ingest', async (job: Job) => {
 }, { connection, concurrency: 1 });
 
 // ---------------------------------------------------------------------
+// All-ATS ingest queue — iterates the discovered registry across
+// Greenhouse / Lever / Ashby. Replaces the older Greenhouse-only flow.
+// ---------------------------------------------------------------------
+new Worker('ats-ingest', async (job: Job) => {
+  log.info({ jobId: job.id, data: job.data }, 'all-ATS ingest');
+  const { readFileSync, existsSync } = await import('node:fs');
+  const path = await import('node:path');
+  const url = await import('node:url');
+  const here = path.dirname(url.fileURLToPath(import.meta.url));
+  const registryPath = path.resolve(here, '../../../packages/db/src/seeds/ats-registry.json');
+  if (!existsSync(registryPath)) {
+    log.warn('ats-registry.json not found; skipping');
+    return { skipped: true };
+  }
+  const registry = JSON.parse(readFileSync(registryPath, 'utf8')) as Record<string, any>;
+  const entries = Object.values(registry) as Array<{ company: string; ats: string; slug: string }>;
+
+  const { ingestOrg: ingestGh } = await import('../../api/src/services/greenhouseIngest.js');
+  const { ingestLeverOrg } = await import('../../api/src/services/leverIngest.js');
+  const { ingestAshbyOrg } = await import('../../api/src/services/ashbyIngest.js');
+
+  const totals = { fetched: 0, inserted: 0, updated: 0, skipped: 0, errors: 0 };
+  for (const entry of entries) {
+    try {
+      const r = entry.ats === 'greenhouse' ? await ingestGh(entry.slug)
+              : entry.ats === 'lever'      ? await ingestLeverOrg(entry.slug, entry.company)
+              : entry.ats === 'ashby'      ? await ingestAshbyOrg(entry.slug, entry.company)
+              : null;
+      if (!r) continue;
+      totals.fetched += r.fetched; totals.inserted += r.inserted;
+      totals.updated += r.updated; totals.skipped += r.skipped; totals.errors += r.errors;
+    } catch (err: any) {
+      log.warn({ org: `${entry.ats}/${entry.slug}`, err: err.message }, 'ats ingest error');
+      totals.errors++;
+    }
+  }
+  log.info({ totals }, 'ats-ingest complete');
+  return totals;
+}, { connection, concurrency: 1 });
+
+// ---------------------------------------------------------------------
 // Cron schedules — enqueue periodic work
 // ---------------------------------------------------------------------
 const livenessIntervalH = parseInt(process.env.LIVENESS_CHECK_INTERVAL_HOURS ?? '24', 10);
@@ -109,11 +150,11 @@ cron.schedule('0 3 * * 0', async () => {  // Sundays 3am
   // TODO: enqueue
 });
 
-// Daily 4am — refresh Greenhouse boards.
+// Daily 4am — refresh ALL configured ATS boards (Greenhouse + Lever + Ashby).
 cron.schedule('0 4 * * *', async () => {
-  log.info('Cron: enqueueing daily Greenhouse ingest');
+  log.info('Cron: enqueueing daily all-ATS ingest');
   const { Queue } = await import('bullmq');
-  const q = new Queue('greenhouse-ingest', { connection });
+  const q = new Queue('ats-ingest', { connection });
   await q.add('daily', {});
   await q.close();
 });
