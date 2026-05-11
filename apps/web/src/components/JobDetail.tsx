@@ -7,6 +7,7 @@
  *   - inline expansion in the swipe interface (future)
  */
 
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -194,15 +195,7 @@ export function JobDetail({ job, onBack }: Props) {
             </CardContent>
           </Card>
 
-          {/* Description */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="font-semibold text-gray-900 mb-3">About this role</h2>
-              <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">
-                {job.description || <em className="text-gray-400">No description available.</em>}
-              </div>
-            </CardContent>
-          </Card>
+          <CollapsibleDescription description={job.description} />
 
           {/* Requirements */}
           {job.requirements && job.requirements.length > 0 && (
@@ -320,7 +313,8 @@ export function JobDetail({ job, onBack }: Props) {
           )}
 
           <CompanyHiringStatsCard company={job.company} role={job.title} />
-          <LevelsFyiCard company={job.company} />
+          <LevelsFyiCard company={job.company} role={job.title} />
+          <CompanyFinancialsCard company={job.company} />
           <CompanyIntelCard company={job.company} />
         </div>
       </div>
@@ -357,38 +351,79 @@ function CompanyHiringStatsCard({ company, role }: { company: string; role: stri
 
   if (!data?.hasData) return null;
 
+  // Compute max for sparkline scaling.
+  const trend = data.quarterlyPostings ?? [];
+  const maxQ = Math.max(1, ...trend.map((q: any) => q.count));
+  const last30 = data.velocity.last30d;
+  const prev30 = Math.max(0, data.velocity.last90d - last30);    // approx 30-60 days ago
+  const trendArrow = last30 > prev30 ? "↑" : last30 < prev30 ? "↓" : "→";
+  const trendColor = last30 > prev30 ? "text-green-600" : last30 < prev30 ? "text-red-600" : "text-gray-500";
+
   return (
     <Card>
       <CardContent className="p-6">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="w-4 h-4 text-primary" />
           <h2 className="font-semibold text-gray-900">Hiring at {company}</h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="bg-gray-50 rounded px-2.5 py-2">
-            <div className="text-[10px] uppercase tracking-wide text-gray-500">Active openings</div>
-            <div className="font-semibold text-gray-900">{data.activeJobs.total}</div>
-            {data.activeJobs.visaSponsor > 0 && (
-              <div className="text-[10px] text-purple-700 mt-0.5">
-                {data.activeJobs.visaSponsor} sponsor visa
-              </div>
-            )}
+        {/* Big headline number */}
+        <div className="bg-gradient-to-br from-primary/5 to-blue-50 rounded-lg p-4 mb-3">
+          <div className="flex items-baseline justify-between">
+            <div>
+              <div className="text-3xl font-bold text-gray-900">{data.activeJobs.total.toLocaleString()}</div>
+              <div className="text-xs text-gray-500 mt-0.5">active openings</div>
+            </div>
+            <div className="text-right">
+              <div className={`text-lg font-bold ${trendColor}`}>{trendArrow} {last30}</div>
+              <div className="text-xs text-gray-500 mt-0.5">in last 30 days</div>
+            </div>
           </div>
-          <div className="bg-gray-50 rounded px-2.5 py-2">
-            <div className="text-[10px] uppercase tracking-wide text-gray-500">Posted last 30 days</div>
-            <div className="font-semibold text-gray-900">{data.velocity.last30d}</div>
-            {data.velocity.last90d > data.velocity.last30d && (
-              <div className="text-[10px] text-gray-500 mt-0.5">
-                {data.velocity.last90d} in 90 days · {data.velocity.last180d} in 180
-              </div>
+          <div className="flex flex-wrap gap-3 mt-3 text-xs">
+            {data.activeJobs.visaSponsor > 0 && (
+              <span className="inline-flex items-center gap-1 text-purple-700">
+                <Globe className="w-3 h-3" />
+                {data.activeJobs.visaSponsor} sponsor visa
+              </span>
+            )}
+            {data.activeJobs.remote > 0 && (
+              <span className="inline-flex items-center gap-1 text-green-700">
+                🌐 {data.activeJobs.remote} remote
+              </span>
+            )}
+            {data.activeJobs.hybrid > 0 && (
+              <span className="inline-flex items-center gap-1 text-blue-700">
+                🏢 {data.activeJobs.hybrid} hybrid
+              </span>
             )}
           </div>
         </div>
 
+        {/* Quarterly sparkline */}
+        {trend.length >= 2 && (
+          <div className="mb-3">
+            <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-2">Posting volume by quarter</div>
+            <div className="flex items-end justify-between gap-1 h-16">
+              {trend.map((q: any, i: number) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                  <div
+                    className="w-full bg-primary/60 rounded-t hover:bg-primary transition-colors"
+                    style={{ height: `${Math.max(4, (q.count / maxQ) * 56)}px` }}
+                    title={`${q.count} jobs`}
+                  />
+                  <div className="text-[9px] text-gray-400">
+                    Q{Math.floor((new Date(q.quarter).getMonth() / 3)) + 1}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="text-xs text-gray-600 mb-3">
           <Clock className="inline w-3 h-3 mr-1" />
-          Most recent posting: <span className="font-medium text-gray-900">{fmtDate(data.velocity.latestPostedAt)}</span>
+          Latest posting: <span className="font-medium text-gray-900">{fmtDate(data.velocity.latestPostedAt)}</span>
+          <span className="text-gray-400"> · {data.velocity.last90d} in 90 days · {data.velocity.last180d} in 180</span>
         </div>
 
         {data.roleSpecific && (
@@ -399,14 +434,14 @@ function CompanyHiringStatsCard({ company, role }: { company: string; role: stri
             <div className="text-sm text-gray-700">
               {data.roleSpecific.matches} similar opening{data.roleSpecific.matches > 1 ? "s" : ""}
               {data.roleSpecific.p50SalaryMin && data.roleSpecific.p50SalaryMax && (
-                <> · median band <span className="font-medium">
+                <> · median band <span className="font-medium text-gray-900">
                   {fmtSalary(data.roleSpecific.p50SalaryMin)}–{fmtSalary(data.roleSpecific.p50SalaryMax)}
                 </span></>
               )}
             </div>
             {data.roleSpecific.salaryMinLow && data.roleSpecific.salaryMaxHigh && (
               <div className="text-xs text-gray-500 mt-0.5">
-                Range across all matches: {fmtSalary(data.roleSpecific.salaryMinLow)}–{fmtSalary(data.roleSpecific.salaryMaxHigh)}
+                Full range: {fmtSalary(data.roleSpecific.salaryMinLow)}–{fmtSalary(data.roleSpecific.salaryMaxHigh)}
               </div>
             )}
           </div>
@@ -428,24 +463,32 @@ function CompanyHiringStatsCard({ company, role }: { company: string; role: stri
 
         {data.topRoles?.length > 0 && (
           <div className="border-t border-gray-100 pt-3">
-            <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
-              Most common roles
+            <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+              Where they're hiring
             </div>
-            <div className="space-y-1">
-              {data.topRoles.slice(0, 4).map((r: any) => (
-                <div key={r.role} className="flex items-center justify-between text-xs">
-                  <span className="text-gray-700">{r.role}</span>
-                  <span className="text-gray-400">{r.count}</span>
+            {(() => {
+              const totalRoleCount = data.topRoles.reduce((a: number, r: any) => a + r.count, 0);
+              return (
+                <div className="space-y-2">
+                  {data.topRoles.slice(0, 5).map((r: any) => {
+                    const pct = (r.count / totalRoleCount) * 100;
+                    return (
+                      <div key={r.role}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-gray-700">{r.role}</span>
+                          <span className="text-gray-500">{r.count}</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                          <div className="bg-primary/70 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
         )}
-
-        <p className="text-[10px] text-gray-400 mt-3 leading-snug">
-          Source: SwipeHire's job index (currently {data.activeJobs.total} {company} listings).
-          Headcount growth and equity data require LinkedIn / Crunchbase access — coming when budget allows.
-        </p>
       </CardContent>
     </Card>
   );
@@ -544,63 +587,218 @@ function levelsFyiSlug(company: string): string {
     .replace(/-(inc|llc|corp|co|ltd|limited)$/, '');
 }
 
-function LevelsFyiCard({ company }: { company: string }) {
+/** Levels.fyi only embeds these job families. For others, fall back to deep-links. */
+const LEVELS_TRACKS = [
+  'Software Engineer', 'Product Manager', 'Product Designer',
+  'Data Scientist', 'Software Engineering Manager',
+] as const;
+
+/** Map a job title to a Levels.fyi track (or null if not supported). */
+function detectLevelsTrack(title: string): string | null {
+  const t = title.toLowerCase();
+  if (/\b(software|backend|frontend|full[- ]stack|swe|sde)\b.*(engineer|developer)/.test(t)) return 'Software Engineer';
+  if (/\b(machine learning|ml|ai)\s+engineer/.test(t)) return 'Software Engineer';
+  if (/\b(engineer|developer)\b/.test(t) && /\b(senior|staff|principal|lead)\b/.test(t)) return 'Software Engineer';
+  if (/\bproduct manager\b|\bpm\b/.test(t)) return 'Product Manager';
+  if (/\bproduct designer\b|\bux designer\b|\bui designer\b/.test(t)) return 'Product Designer';
+  if (/\bdata scientist\b|\bapplied scientist\b|\bml scientist\b/.test(t)) return 'Data Scientist';
+  if (/\b(engineering manager|software engineering manager|swe manager)\b/.test(t)) return 'Software Engineering Manager';
+  if (/\bengineer|developer\b/.test(t)) return 'Software Engineer';   // catch-all
+  return null;
+}
+
+function LevelsFyiCard({ company, role }: { company: string; role: string }) {
   const slug = levelsFyiSlug(company);
   const salariesUrl = `https://www.levels.fyi/companies/${slug}/salaries`;
   const levelingUrl = `https://www.levels.fyi/companies/${slug}/levels`;
-  // Optional iframe — set VITE_LEVELS_EMBED_BASE in Vercel if you have an embed
-  // pattern that works. Most companies block X-Frame-Options on the public site,
-  // so default is deep-link only.
-  const embedBase = (import.meta.env.VITE_LEVELS_EMBED_BASE ?? "").replace(/\/$/, "");
-  const embedUrl = embedBase ? `${embedBase}/${slug}` : null;
+  const track = detectLevelsTrack(role);
+  // Official Levels.fyi embeds (per Available Embeds docs).
+  // Salary chart: charts_embed.html?company=X&track=Y&hide_selector=true
+  // Leveling:     levels_embed.html?compare=X&track=Y
+  const salaryEmbed = track
+    ? `https://www.levels.fyi/charts_embed.html?company=${encodeURIComponent(company)}&track=${encodeURIComponent(track)}&hide_selector=true`
+    : null;
+  const levelEmbed = track
+    ? `https://www.levels.fyi/levels_embed.html?compare=${encodeURIComponent(company)}&track=${encodeURIComponent(track)}`
+    : null;
 
   return (
     <Card>
       <CardContent className="p-6">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-1">
           <DollarSign className="w-4 h-4 text-green-600" />
-          <h2 className="font-semibold text-gray-900">Salary &amp; leveling</h2>
+          <h2 className="font-semibold text-gray-900">Compensation &amp; leveling</h2>
         </div>
-        <p className="text-sm text-gray-600 mb-3">
-          Self-reported compensation data from Levels.fyi for {company}.
+        <p className="text-xs text-gray-500 mb-3">
+          Powered by <a href="https://www.levels.fyi" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Levels.fyi</a>
+          {track ? <> · {track}</> : <> · role not in Levels.fyi families ({LEVELS_TRACKS.slice(0, 3).join(', ')}, ...)</>}
         </p>
 
-        {embedUrl && (
-          <div className="mb-3 rounded-lg overflow-hidden border border-gray-200" style={{ height: 360 }}>
+        {salaryEmbed ? (
+          <div className="mb-3 rounded-lg overflow-hidden border border-gray-200" style={{ height: 500 }}>
             <iframe
-              src={embedUrl}
-              title={`Levels.fyi ${company}`}
+              src={salaryEmbed}
+              title={`Levels.fyi salaries — ${company}`}
               loading="lazy"
-              className="w-full h-full border-0"
+              className="w-full h-full"
+              style={{ border: 'none' }}
+              scrolling="auto"
             />
           </div>
+        ) : (
+          <p className="text-sm text-gray-600 mb-3">
+            Levels.fyi embeds support Software Engineer, Product Manager, Product Designer, Data Scientist, and Engineering Manager roles. Use the deep-links below for this role.
+          </p>
         )}
 
-        <div className="space-y-2">
+        {levelEmbed && (
+          <details className="mb-3">
+            <summary className="text-sm text-gray-700 cursor-pointer hover:text-primary font-medium py-2">
+              Show leveling map →
+            </summary>
+            <div className="mt-2 rounded-lg overflow-hidden border border-gray-200" style={{ height: 600 }}>
+              <iframe
+                src={levelEmbed}
+                title={`Levels.fyi leveling — ${company}`}
+                loading="lazy"
+                className="w-full h-full"
+                style={{ border: 'none' }}
+                scrolling="auto"
+              />
+            </div>
+          </details>
+        )}
+
+        <div className="space-y-1.5 mt-3 pt-3 border-t border-gray-100">
           <a
             href={salariesUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors text-sm"
+            className="flex items-center justify-between gap-2 text-xs text-gray-600 hover:text-primary"
           >
-            <span className="text-gray-900 font-medium">Salary chart</span>
-            <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+            <span>Open full salaries page on Levels.fyi</span>
+            <ExternalLink className="w-3 h-3" />
           </a>
           <a
             href={levelingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors text-sm"
+            className="flex items-center justify-between gap-2 text-xs text-gray-600 hover:text-primary"
           >
-            <span className="text-gray-900 font-medium">Leveling map</span>
-            <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+            <span>Open full leveling map</span>
+            <ExternalLink className="w-3 h-3" />
           </a>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-        <p className="text-[10px] text-gray-400 mt-3 leading-snug">
-          Levels.fyi may not have public data for every company. To embed the chart inline instead
-          of deep-linking, set <code className="bg-gray-100 rounded px-1">VITE_LEVELS_EMBED_BASE</code> on Vercel.
-        </p>
+/** Collapsible job description — show first ~600 chars, expand on Read more. */
+function CollapsibleDescription({ description }: { description?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const text = description ?? '';
+  const PREVIEW_CHARS = 600;
+  const needsCollapse = text.length > PREVIEW_CHARS + 100;
+  const visible = !needsCollapse || expanded ? text : text.slice(0, PREVIEW_CHARS);
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <h2 className="font-semibold text-gray-900 mb-3">About this role</h2>
+        <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">
+          {text ? (
+            <>
+              {visible}
+              {needsCollapse && !expanded && <span className="text-gray-400">…</span>}
+            </>
+          ) : (
+            <em className="text-gray-400">No description available.</em>
+          )}
+        </div>
+        {needsCollapse && (
+          <button
+            type="button"
+            onClick={() => setExpanded(v => !v)}
+            className="mt-3 text-sm font-medium text-primary hover:text-primary/80 inline-flex items-center gap-1"
+          >
+            {expanded ? 'Read less' : `Read more (${text.length.toLocaleString()} chars)`}
+          </button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Company financials from SEC EDGAR (public companies only). */
+function CompanyFinancialsCard({ company }: { company: string }) {
+  const { data, isLoading } = useQuery<any>({
+    queryKey: [`/api/companies/${encodeURIComponent(company)}/financials`],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    staleTime: 7 * 24 * 60 * 60 * 1000,
+    enabled: !!company,
+    retry: false,
+  });
+
+  if (isLoading) return null;
+  if (!data?.found) return null;
+
+  const fmtMoney = (n: number | null | undefined): string => {
+    if (n == null) return '—';
+    if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+    if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
+    return `$${n.toLocaleString()}`;
+  };
+  const fmtPct = (n: number | null | undefined): string => {
+    if (n == null) return '—';
+    return `${(n * 100).toFixed(1)}%`;
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h2 className="font-semibold text-gray-900 inline-flex items-center gap-1.5">
+            <Briefcase className="w-4 h-4 text-blue-600" /> Financials
+          </h2>
+          {data.ticker && (
+            <span className="text-xs font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{data.ticker}</span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="bg-gray-50 rounded px-2.5 py-2">
+            <div className="text-[10px] uppercase tracking-wide text-gray-500">Revenue (last FY)</div>
+            <div className="font-semibold text-gray-900">{fmtMoney(data.revenue)}</div>
+            {data.revenueGrowthYoy != null && (
+              <div className={`text-[10px] mt-0.5 ${data.revenueGrowthYoy >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                {data.revenueGrowthYoy >= 0 ? '↑' : '↓'} {fmtPct(Math.abs(data.revenueGrowthYoy))} YoY
+              </div>
+            )}
+          </div>
+          <div className="bg-gray-50 rounded px-2.5 py-2">
+            <div className="text-[10px] uppercase tracking-wide text-gray-500">Operating margin</div>
+            <div className="font-semibold text-gray-900">{fmtPct(data.operatingMargin)}</div>
+            {data.operatingIncome != null && (
+              <div className="text-[10px] text-gray-500 mt-0.5">{fmtMoney(data.operatingIncome)} op income</div>
+            )}
+          </div>
+          <div className="bg-gray-50 rounded px-2.5 py-2">
+            <div className="text-[10px] uppercase tracking-wide text-gray-500">Net income</div>
+            <div className="font-semibold text-gray-900">{fmtMoney(data.netIncome)}</div>
+          </div>
+          <div className="bg-gray-50 rounded px-2.5 py-2">
+            <div className="text-[10px] uppercase tracking-wide text-gray-500">Cash &amp; equivalents</div>
+            <div className="font-semibold text-gray-900">{fmtMoney(data.cash)}</div>
+          </div>
+        </div>
+
+        {data.fiscalYearEnd && (
+          <p className="text-[10px] text-gray-400 leading-snug">
+            FY {data.fiscalYear} (ended {new Date(data.fiscalYearEnd).toLocaleDateString()}).
+            Source: <a href={data.secUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SEC EDGAR 10-K</a>.
+          </p>
+        )}
       </CardContent>
     </Card>
   );
