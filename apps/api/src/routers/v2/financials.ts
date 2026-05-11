@@ -109,48 +109,65 @@ interface SecConcept {
   }>>;
 }
 
-/** Fetch a single XBRL concept and return the most recent annual value. */
-async function fetchConcept(cik: string, concept: string): Promise<{ val: number; end: string; fy: number } | null> {
+type Entry = { val: number; end: string; fy: number; form: string; fp: string };
+
+/** Fetch a concept's full annual entries (10-K, FY/Q4). Returns desc by end date. */
+async function fetchConceptAll(cik: string, concept: string): Promise<Entry[]> {
   try {
     const url = `https://data.sec.gov/api/xbrl/companyconcept/CIK${cik}/us-gaap/${concept}.json`;
     const r = await fetch(url, { headers: SEC_HEADERS, signal: AbortSignal.timeout(6000) });
-    if (!r.ok) return null;
-    const data = await r.json() as SecConcept;
-    const usd = data.units?.['USD'];
-    if (!usd) return null;
-    // Filter to annual 10-K reports, sort desc by end date.
-    const annual = usd
-      .filter(e => e.form === '10-K' && (e.fp === 'FY' || e.fp === 'Q4'))
-      .sort((a, b) => b.end.localeCompare(a.end));
-    return annual[0] ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** Some companies report Revenues, others RevenueFromContractWithCustomerExcludingAssessedTax. Try both. */
-async function fetchRevenue(cik: string) {
-  return await fetchConcept(cik, 'Revenues')
-    ?? await fetchConcept(cik, 'RevenueFromContractWithCustomerExcludingAssessedTax')
-    ?? await fetchConcept(cik, 'SalesRevenueNet');
-}
-
-/** Pull the previous-year revenue for YoY calc. */
-async function fetchPriorYearRevenue(cik: string, currentEnd: string): Promise<number | null> {
-  const url = `https://data.sec.gov/api/xbrl/companyconcept/CIK${cik}/us-gaap/Revenues.json`;
-  try {
-    const r = await fetch(url, { headers: SEC_HEADERS, signal: AbortSignal.timeout(6000) });
-    if (!r.ok) return null;
+    if (!r.ok) return [];
     const data = await r.json() as SecConcept;
     const usd = data.units?.['USD'] ?? [];
-    const currentYear = parseInt(currentEnd.slice(0, 4), 10);
-    const prior = usd
-      .filter(e => e.form === '10-K' && e.fp === 'FY' && parseInt(e.end.slice(0, 4), 10) === currentYear - 1)
-      .sort((a, b) => b.end.localeCompare(a.end))[0];
-    return prior?.val ?? null;
+    return usd
+      .filter(e => e.form === '10-K' && (e.fp === 'FY' || e.fp === 'Q4'))
+      .sort((a, b) => b.end.localeCompare(a.end));
   } catch {
-    return null;
+    return [];
   }
+}
+
+/**
+ * Try multiple concept names and return the entry with the MOST RECENT end date
+ * across all of them. This handles SEC's evolution from older `Revenues` concept
+ * to newer `RevenueFromContractWithCustomerExcludingAssessedTax` — companies
+ * often have both, but the newer one has fresh data.
+ */
+async function fetchLatestAcrossConcepts(cik: string, concepts: string[]): Promise<Entry | null> {
+  const results = await Promise.all(concepts.map(c => fetchConceptAll(cik, c)));
+  const all = results.flat().sort((a, b) => b.end.localeCompare(a.end));
+  return all[0] ?? null;
+}
+
+async function fetchRevenue(cik: string): Promise<Entry | null> {
+  return fetchLatestAcrossConcepts(cik, [
+    'RevenueFromContractWithCustomerExcludingAssessedTax',
+    'Revenues',
+    'SalesRevenueNet',
+  ]);
+}
+
+/**
+ * Pull prior-year revenue for YoY. Looks across all revenue concept variants
+ * for an FY entry whose end-year is exactly currentYear - 1.
+ */
+async function fetchPriorYearRevenue(cik: string, currentEnd: string): Promise<number | null> {
+  const concepts = [
+    'RevenueFromContractWithCustomerExcludingAssessedTax',
+    'Revenues',
+    'SalesRevenueNet',
+  ];
+  const all = (await Promise.all(concepts.map(c => fetchConceptAll(cik, c)))).flat();
+  const currentYear = parseInt(currentEnd.slice(0, 4), 10);
+  const prior = all
+    .filter(e => parseInt(e.end.slice(0, 4), 10) === currentYear - 1)
+    .sort((a, b) => b.end.localeCompare(a.end))[0];
+  return prior?.val ?? null;
+}
+
+async function fetchConcept(cik: string, concept: string): Promise<Entry | null> {
+  const all = await fetchConceptAll(cik, concept);
+  return all[0] ?? null;
 }
 
 const cache = new Map<string, { at: number; data: FinancialsResult }>();
