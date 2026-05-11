@@ -50,9 +50,16 @@ export async function calculateVisaCompatibility(
 ): Promise<Subscore> {
   const fein = features.employerFein ?? await matchEmployer(job.company);
   if (!fein) {
+    // Use what we DO know from the job description.
+    if (job.sponsorsVisa) {
+      return {
+        value: 0.65, weight: 0, confidence: 0.40,
+        evidence: [`${job.company} indicates visa sponsorship in the JD (DOL records pending)`],
+      };
+    }
     return {
       value: 0.30, weight: 0, confidence: 0.10,
-      evidence: [`Employer "${job.company}" not yet matched in DOL records`],
+      evidence: [`No DOL records for "${job.company}" yet, and JD doesn't mention sponsorship`],
     };
   }
 
@@ -107,6 +114,21 @@ export async function fetchVisaIntel(
   const socCode = job.socCode ?? await inferSoc(job.title, job.description);
 
   if (!fein) {
+    // No DOL match — be useful with what we DO know from the JD itself.
+    let summary: string;
+    let warnings: string[];
+    if (job.sponsorsVisa) {
+      summary = `${job.company} indicates visa sponsorship in this posting. We don't have DOL records to verify the rate yet.`;
+      warnings = [
+        'Sponsorship signal comes from the job description, not yet cross-checked against DOL OFLC records.',
+      ];
+    } else {
+      summary = `We don't yet have DOL data for "${job.company}", and this posting doesn't explicitly mention sponsorship. Confirm directly with the employer.`;
+      warnings = [
+        'No DOL match. Their absence here doesn\'t mean they don\'t sponsor — many do without ingest coverage.',
+        'Job description doesn\'t mention visa sponsorship; check the employer\'s careers page or recruiter directly.',
+      ];
+    }
     return {
       fein: null, socCode,
       stats24mo: { totalLcas: 0, certified: 0, denied: 0, withdrawn: 0,
@@ -116,9 +138,9 @@ export async function fetchVisaIntel(
       daysSinceLastSponsored: null,
       salaryMeetsPrevailingWage: null,
       prevailingWageLevelIi: null,
-      summary: `We don't yet have DOL data for "${job.company}". Sponsorship history unknown.`,
-      warnings: ['Employer not matched in our DOL ingestion. Their absence does not mean they don\'t sponsor.'],
-      confidence: 0.1,
+      summary,
+      warnings,
+      confidence: job.sponsorsVisa ? 0.4 : 0.1,
     };
   }
 

@@ -320,6 +320,7 @@ export function JobDetail({ job, onBack }: Props) {
           )}
 
           <CompanyHiringStatsCard company={job.company} role={job.title} />
+          <LevelsFyiCard company={job.company} />
           <CompanyIntelCard company={job.company} />
         </div>
       </div>
@@ -528,6 +529,78 @@ function CompanyIntelCard({ company }: { company: string }) {
         {!isLoading && !data?.wiki && !data?.news?.length && (
           <p className="text-xs text-gray-500">No public profile or recent news found for "{company}".</p>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Slugify company name for levels.fyi URLs (lowercase, hyphenated, no entity suffixes). */
+function levelsFyiSlug(company: string): string {
+  return company
+    .toLowerCase()
+    .replace(/[,.()'"]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/^the-/, '')
+    .replace(/-(inc|llc|corp|co|ltd|limited)$/, '');
+}
+
+function LevelsFyiCard({ company }: { company: string }) {
+  const slug = levelsFyiSlug(company);
+  const salariesUrl = `https://www.levels.fyi/companies/${slug}/salaries`;
+  const levelingUrl = `https://www.levels.fyi/companies/${slug}/levels`;
+  // Optional iframe — set VITE_LEVELS_EMBED_BASE in Vercel if you have an embed
+  // pattern that works. Most companies block X-Frame-Options on the public site,
+  // so default is deep-link only.
+  const embedBase = (import.meta.env.VITE_LEVELS_EMBED_BASE ?? "").replace(/\/$/, "");
+  const embedUrl = embedBase ? `${embedBase}/${slug}` : null;
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-2 mb-3">
+          <DollarSign className="w-4 h-4 text-green-600" />
+          <h2 className="font-semibold text-gray-900">Salary &amp; leveling</h2>
+        </div>
+        <p className="text-sm text-gray-600 mb-3">
+          Self-reported compensation data from Levels.fyi for {company}.
+        </p>
+
+        {embedUrl && (
+          <div className="mb-3 rounded-lg overflow-hidden border border-gray-200" style={{ height: 360 }}>
+            <iframe
+              src={embedUrl}
+              title={`Levels.fyi ${company}`}
+              loading="lazy"
+              className="w-full h-full border-0"
+            />
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <a
+            href={salariesUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors text-sm"
+          >
+            <span className="text-gray-900 font-medium">Salary chart</span>
+            <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+          </a>
+          <a
+            href={levelingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors text-sm"
+          >
+            <span className="text-gray-900 font-medium">Leveling map</span>
+            <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+          </a>
+        </div>
+
+        <p className="text-[10px] text-gray-400 mt-3 leading-snug">
+          Levels.fyi may not have public data for every company. To embed the chart inline instead
+          of deep-linking, set <code className="bg-gray-100 rounded px-1">VITE_LEVELS_EMBED_BASE</code> on Vercel.
+        </p>
       </CardContent>
     </Card>
   );

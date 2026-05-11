@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
-    "ingest:greenhouse": "tsx --env-file=../../.env scripts/ingestGreenhouse.ts"
+    "ingest:greenhouse": "tsx --env-file=../../.env scripts/ingestGreenhouse.ts",
+    "ingest:dol": "tsx --env-file=../../.env scripts/ingestDol.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
