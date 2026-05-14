@@ -13,14 +13,18 @@ import { dirname, resolve } from 'node:path';
 import { ingestOrg as ingestGreenhouseOrg } from '../src/services/greenhouseIngest.js';
 import { ingestLeverOrg } from '../src/services/leverIngest.js';
 import { ingestAshbyOrg } from '../src/services/ashbyIngest.js';
+import { ingestWorkdayOrg } from '../src/services/workdayIngest.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const REGISTRY_PATH = resolve(here, '../../../packages/db/src/seeds/ats-registry.json');
 
 interface RegistryEntry {
   company: string;
-  ats: 'greenhouse' | 'lever' | 'ashby';
-  slug: string;
+  ats: 'greenhouse' | 'lever' | 'ashby' | 'workday';
+  slug?: string;                    // greenhouse/lever/ashby
+  host?: string;                    // workday: e.g. 'nvidia.wd5.myworkdayjobs.com'
+  tenant?: string;                  // workday
+  site?: string;                    // workday
   fein?: string;
   totalLcas24mo?: number;
   discoveredAt: string;
@@ -55,19 +59,22 @@ async function main() {
     const t0 = Date.now();
     let r;
     try {
-      if (entry.ats === 'greenhouse') r = await ingestGreenhouseOrg(entry.slug);
-      else if (entry.ats === 'lever') r = await ingestLeverOrg(entry.slug, entry.company);
-      else if (entry.ats === 'ashby') r = await ingestAshbyOrg(entry.slug, entry.company);
-      else continue;
+      if (entry.ats === 'greenhouse' && entry.slug) r = await ingestGreenhouseOrg(entry.slug);
+      else if (entry.ats === 'lever' && entry.slug) r = await ingestLeverOrg(entry.slug, entry.company);
+      else if (entry.ats === 'ashby' && entry.slug) r = await ingestAshbyOrg(entry.slug, entry.company);
+      else if (entry.ats === 'workday' && entry.host && entry.tenant && entry.site) {
+        r = await ingestWorkdayOrg({ host: entry.host, tenant: entry.tenant, site: entry.site }, entry.company);
+      } else continue;
     } catch (err: any) {
-      console.warn(`  [${i}/${entries.length}] ✗ ${entry.ats}/${entry.slug}: ${err.message?.slice(0, 80)}`);
+      console.warn(`  [${i}/${entries.length}] ✗ ${entry.ats}/${entry.slug ?? entry.tenant}: ${err.message?.slice(0, 80)}`);
       totals.errors++;
       continue;
     }
     const ms = Date.now() - t0;
+    const id = entry.slug ?? `${entry.tenant}/${entry.site}`;
     if (r.fetched > 0 || r.errors > 0) {
       console.log(
-        `  [${i}/${entries.length}] ${entry.ats}/${entry.slug} (${entry.company.slice(0, 40)}): ` +
+        `  [${i}/${entries.length}] ${entry.ats}/${id} (${entry.company.slice(0, 40)}): ` +
         `fetched=${r.fetched} +${r.inserted} ~${r.updated} skip=${r.skipped} err=${r.errors} (${ms}ms)`
       );
     }

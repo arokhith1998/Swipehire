@@ -65,5 +65,13 @@
   "posit-curated": { "company": "Posit", "ats": "ashby", "slug": "posit", "discoveredAt": "2026-05-11T00:00:00.000Z" },
   "vanta-curated": { "company": "Vanta", "ats": "ashby", "slug": "vanta", "discoveredAt": "2026-05-11T00:00:00.000Z" },
   "deel-curated": { "company": "Deel", "ats": "ashby", "slug": "deel", "discoveredAt": "2026-05-11T00:00:00.000Z" },
-  "retool-curated": { "company": "Retool", "ats": "ashby", "slug": "retool", "discoveredAt": "2026-05-11T00:00:00.000Z" }
+  "retool-curated": { "company": "Retool", "ats": "ashby", "slug": "retool", "discoveredAt": "2026-05-11T00:00:00.000Z" },
+
+  "nvidia-workday": { "company": "NVIDIA", "ats": "workday", "host": "nvidia.wd5.myworkdayjobs.com", "tenant": "nvidia", "site": "NVIDIAExternalCareerSite", "discoveredAt": "2026-05-13T00:00:00.000Z" },
+  "salesforce-workday": { "company": "Salesforce", "ats": "workday", "host": "salesforce.wd12.myworkdayjobs.com", "tenant": "salesforce", "site": "External_Career_Site", "discoveredAt": "2026-05-13T00:00:00.000Z" },
+  "walmart-workday": { "company": "Walmart", "ats": "workday", "host": "walmart.wd5.myworkdayjobs.com", "tenant": "walmart", "site": "WalmartExternal", "discoveredAt": "2026-05-13T00:00:00.000Z" },
+  "paypal-workday": { "company": "PayPal", "ats": "workday", "host": "paypal.wd1.myworkdayjobs.com", "tenant": "paypal", "site": "jobs", "discoveredAt": "2026-05-13T00:00:00.000Z" },
+  "mastercard-workday": { "company": "Mastercard", "ats": "workday", "host": "mastercard.wd1.myworkdayjobs.com", "tenant": "mastercard", "site": "CorporateCareers", "discoveredAt": "2026-05-13T00:00:00.000Z" },
+  "boeing-workday": { "company": "Boeing", "ats": "workday", "host": "boeing.wd1.myworkdayjobs.com", "tenant": "boeing", "site": "EXTERNAL_CAREERS", "discoveredAt": "2026-05-13T00:00:00.000Z" },
+  "workday-workday": { "company": "Workday", "ats": "workday", "host": "workday.wd5.myworkdayjobs.com", "tenant": "workday", "site": "Workday", "discoveredAt": "2026-05-13T00:00:00.000Z" }
 }

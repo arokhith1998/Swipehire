@@ -147,19 +147,22 @@ if (enabled('ENABLE_ATS_INGEST_WORKER', /* defaultOn */ true)) {
     const { ingestOrg: ingestGh } = await import('../../api/src/services/greenhouseIngest.js');
     const { ingestLeverOrg } = await import('../../api/src/services/leverIngest.js');
     const { ingestAshbyOrg } = await import('../../api/src/services/ashbyIngest.js');
+    const { ingestWorkdayOrg } = await import('../../api/src/services/workdayIngest.js');
 
     const totals = { fetched: 0, inserted: 0, updated: 0, skipped: 0, errors: 0 };
-    for (const entry of entries) {
+    for (const entry of entries as any[]) {
       try {
-        const r = entry.ats === 'greenhouse' ? await ingestGh(entry.slug)
-                : entry.ats === 'lever'      ? await ingestLeverOrg(entry.slug, entry.company)
-                : entry.ats === 'ashby'      ? await ingestAshbyOrg(entry.slug, entry.company)
+        const r = entry.ats === 'greenhouse' && entry.slug ? await ingestGh(entry.slug)
+                : entry.ats === 'lever' && entry.slug      ? await ingestLeverOrg(entry.slug, entry.company)
+                : entry.ats === 'ashby' && entry.slug      ? await ingestAshbyOrg(entry.slug, entry.company)
+                : entry.ats === 'workday' && entry.host && entry.tenant && entry.site
+                    ? await ingestWorkdayOrg({ host: entry.host, tenant: entry.tenant, site: entry.site }, entry.company)
                 : null;
         if (!r) continue;
         totals.fetched += r.fetched; totals.inserted += r.inserted;
         totals.updated += r.updated; totals.skipped += r.skipped; totals.errors += r.errors;
       } catch (err: any) {
-        log.warn({ org: `${entry.ats}/${entry.slug}`, err: err.message }, 'ats ingest error');
+        log.warn({ org: `${entry.ats}/${entry.slug ?? entry.tenant}`, err: err.message }, 'ats ingest error');
         totals.errors++;
       }
     }
