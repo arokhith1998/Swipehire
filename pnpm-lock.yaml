@@ -373,15 +373,9 @@ importers:
       '@swipehire/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      bullmq:
-        specifier: ^5.20.0
-        version: 5.76.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
-      ioredis:
-        specifier: ^5.4.1
-        version: 5.10.1
       node-cron:
         specifier: ^4.1.1
         version: 4.2.1

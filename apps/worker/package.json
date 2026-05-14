@@ -12,9 +12,7 @@
   "dependencies": {
     "@swipehire/db": "workspace:*",
     "@swipehire/shared": "workspace:*",
-    "bullmq": "^5.20.0",
     "dotenv": "^16.4.5",
-    "ioredis": "^5.4.1",
     "node-cron": "^4.1.1",
     "pino": "^9.5.0",
     "pino-pretty": "^11.3.0",
