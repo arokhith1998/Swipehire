@@ -15,8 +15,10 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
+import crypto from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { db } from '@swipehire/db';
+import { sendWelcomeEmail, sendPasswordResetEmail } from '../../services/email.js';
 
 export const authRouter: Router = Router();
 
@@ -58,6 +60,10 @@ authRouter.post('/api/auth/register', async (req: Request, res: Response) => {
   const user = result.rows[0] as any;
 
   req.session.userId = user.id;
+
+  // Fire-and-forget welcome email; never block signup on SES.
+  sendWelcomeEmail(user.email, user.first_name).catch(() => undefined);
+
   res.status(201).json({
     user: {
       id: user.id,
@@ -67,6 +73,64 @@ authRouter.post('/api/auth/register', async (req: Request, res: Response) => {
       isProfileComplete: user.is_profile_complete ?? false,
     },
   });
+});
+
+// =====================================================================
+// Password reset — request + complete
+// =====================================================================
+
+const RESET_TTL_MS = 60 * 60 * 1000; // 1 hour
+const forgotSchema = z.object({ email: z.string().email() });
+
+authRouter.post('/api/auth/forgot-password', async (req: Request, res: Response) => {
+  const parsed = forgotSchema.safeParse(req.body);
+  // Always return ok to avoid leaking which emails are registered.
+  if (!parsed.success) return res.json({ ok: true });
+
+  const emailNorm = parsed.data.email.toLowerCase().trim();
+  const r = await db.execute(sql`SELECT id, email, first_name FROM users WHERE email = ${emailNorm} LIMIT 1`);
+  const user = r.rows[0] as any;
+  if (!user) return res.json({ ok: true });
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expiresAt = new Date(Date.now() + RESET_TTL_MS);
+
+  await db.execute(sql`
+    INSERT INTO ops.password_reset_tokens (user_id, token_hash, expires_at)
+    VALUES (${user.id}, ${tokenHash}, ${expiresAt.toISOString()})
+  `);
+
+  sendPasswordResetEmail(user.email, rawToken).catch(() => undefined);
+  res.json({ ok: true });
+});
+
+const resetSchema = z.object({
+  token: z.string().min(32).max(128),
+  password: z.string().min(8).max(200),
+});
+
+authRouter.post('/api/auth/reset-password', async (req: Request, res: Response) => {
+  const parsed = resetSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+
+  const tokenHash = crypto.createHash('sha256').update(parsed.data.token).digest('hex');
+  const r = await db.execute(sql`
+    SELECT id, user_id, expires_at, used_at
+    FROM ops.password_reset_tokens
+    WHERE token_hash = ${tokenHash}
+    LIMIT 1
+  `);
+  const row = r.rows[0] as any;
+  if (!row) return res.status(400).json({ error: 'invalid_token' });
+  if (row.used_at) return res.status(400).json({ error: 'token_used' });
+  if (new Date(row.expires_at).getTime() < Date.now()) return res.status(400).json({ error: 'token_expired' });
+
+  const passwordHash = await bcrypt.hash(parsed.data.password, BCRYPT_ROUNDS);
+  await db.execute(sql`UPDATE users SET password = ${passwordHash} WHERE id = ${row.user_id}`);
+  await db.execute(sql`UPDATE ops.password_reset_tokens SET used_at = NOW() WHERE id = ${row.id}`);
+
+  res.json({ ok: true });
 });
 
 const loginSchema = z.object({

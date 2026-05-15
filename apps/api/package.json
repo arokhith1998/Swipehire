@@ -17,6 +17,7 @@
     "ingest:all-ats": "tsx --env-file=../../.env scripts/ingestAllAts.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.1047.0",
     "@neondatabase/serverless": "^0.10.4",
     "@swipehire/db": "workspace:*",
     "@swipehire/shared": "workspace:*",

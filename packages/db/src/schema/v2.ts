@@ -301,6 +301,23 @@ export const ingestionRuns = opsSchema.table(
   }
 );
 
+/** Password reset tokens — short-lived, one-shot. Hash stored, not the raw token. */
+export const passwordResetTokens = opsSchema.table(
+  'password_reset_tokens',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: integer('user_id').notNull(),
+    tokenHash: text('token_hash').notNull(),              // sha256 of the raw token
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    byHash: uniqueIndex('password_reset_tokens_hash_idx').on(t.tokenHash),
+    byUser: index('password_reset_tokens_user_idx').on(t.userId),
+  })
+);
+
 // =====================================================================
 // audit schema — score decisions (90-day retention)
 // =====================================================================
