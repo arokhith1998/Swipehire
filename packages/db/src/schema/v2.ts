@@ -301,6 +301,25 @@ export const ingestionRuns = opsSchema.table(
   }
 );
 
+/** Per-user resume bank. One user can hold many resumes; one is marked primary. */
+export const userResumes = pgTable(
+  'user_resumes',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: integer('user_id').notNull(),
+    label: text('label').notNull(),                          // "MLE — RAG focus", "Marketing"
+    mimeType: text('mime_type'),                             // null for pasted text
+    originalFilename: text('original_filename'),
+    rawText: text('raw_text').notNull(),
+    parsedJson: jsonb('parsed_json'),                        // { skills, experience, targetJobTitle, detectedLocation }
+    isPrimary: boolean('is_primary').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    byUser: index('user_resumes_user_idx').on(t.userId, t.createdAt),
+  })
+);
+
 /** Password reset tokens — short-lived, one-shot. Hash stored, not the raw token. */
 export const passwordResetTokens = opsSchema.table(
   'password_reset_tokens',

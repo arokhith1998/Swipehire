@@ -19,6 +19,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { User, Camera, MapPin, Briefcase, GraduationCap, Plus, X } from "lucide-react";
 import { LocationAutocomplete } from "@/components/LocationAutocomplete";
 import { SwipeHireLogo } from "@/components/SwipeHireLogo";
+import { MyResumes } from "@/components/MyResumes";
 
 const profileSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -528,6 +529,10 @@ export default function Profile() {
             </Form>
           </CardContent>
         </Card>
+
+        <div className="mt-6">
+          <MyResumes />
+        </div>
       </div>
     </div>
   );
