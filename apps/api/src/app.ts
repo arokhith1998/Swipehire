@@ -69,6 +69,9 @@ export function createApp(): Express {
       return cb(new Error(`CORS blocked: ${origin}`));
     },
     credentials: true,
+    // Required so the frontend can read filename from Content-Disposition
+    // on the generated PDF/DOCX download responses.
+    exposedHeaders: ['Content-Disposition'],
   }));
 
   // Session — Postgres-backed in prod, memory in dev.
