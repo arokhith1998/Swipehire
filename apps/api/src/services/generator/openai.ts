@@ -10,10 +10,11 @@ import type { GeneratorContext, GeneratedCV, GeneratedCoverLetter } from './type
 const MODEL = process.env.GENERATOR_MODEL ?? 'gpt-4o-mini';
 
 function client(): OpenAI {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY not configured');
-  }
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  // Accept either OPENAI_API_KEY (canonical) or OPEN_API_KEY (typo people
+  // commonly make — including in our own Railway setup). Either works.
+  const key = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
+  if (!key) throw new Error('OPENAI_API_KEY not configured');
+  return new OpenAI({ apiKey: key });
 }
 
 function resumeBank(ctx: GeneratorContext): string {
