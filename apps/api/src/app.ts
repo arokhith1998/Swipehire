@@ -23,6 +23,7 @@ import { pino } from 'pino';
 import { honestyRouter } from './honesty/routes.js';
 import { flags } from './config/flags.js';
 import { authRouter, attachUserMiddleware } from './routers/v2/auth.js';
+import { googleRouter } from './routers/v2/google.js';
 import { jobsRouter } from './routers/v2/jobs.js';
 import { profileRouter } from './routers/v2/profile.js';
 import { dashboardRouter } from './routers/v2/dashboard.js';
@@ -145,6 +146,7 @@ export function createApp(): Express {
 
   // ---- v2 routers ----
   app.use(authRouter);
+  app.use(googleRouter);
   app.use(jobsRouter);
   app.use(profileRouter);
   app.use(resumeRouter);
