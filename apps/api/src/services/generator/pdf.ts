@@ -55,12 +55,39 @@ async function ensureInstalled(): Promise<void> {
   return installPromise;
 }
 
+/** Find the chrome-headless-shell binary on disk no matter where it ended up. */
+function findChromiumExecutable(): string | null {
+  const roots = [
+    process.env.PLAYWRIGHT_BROWSERS_PATH || '/app/.cache/ms-playwright',
+    '/app/.cache/ms-playwright',
+    '/root/.cache/ms-playwright',
+  ];
+  for (const root of roots) {
+    if (!existsSync(root)) continue;
+    try {
+      const { readdirSync } = require('node:fs') as typeof import('node:fs');
+      const shellDir = readdirSync(root).find(n => n.startsWith('chromium_headless_shell-'));
+      if (shellDir) {
+        const exe = `${root}/${shellDir}/chrome-headless-shell-linux64/chrome-headless-shell`;
+        if (existsSync(exe)) return exe;
+      }
+    } catch { /* keep trying */ }
+  }
+  return null;
+}
+
 async function getBrowser(): Promise<Browser> {
   if (browser?.isConnected()) return browser;
   await ensureInstalled();
   // Dynamic import so the env var assignment above always executes first.
   const { chromium } = await import('playwright');
-  browser = await chromium.launch({ args: ['--no-sandbox'] });
+  // Pass executablePath explicitly so we bypass playwright's internal path
+  // resolution, which was caching the wrong root somewhere upstream.
+  const exe = findChromiumExecutable();
+  browser = await chromium.launch({
+    args: ['--no-sandbox'],
+    ...(exe ? { executablePath: exe } : {}),
+  });
   return browser;
 }
 
