@@ -6,6 +6,14 @@
  */
 import { chromium, type Browser } from 'playwright';
 
+// Force Playwright to look inside /app/.cache (where nixpacks build phase
+// installed the binaries) rather than the default ~/.cache/ms-playwright,
+// which lives at /root/.cache and isn't preserved into the runtime image.
+// No-op if PLAYWRIGHT_BROWSERS_PATH is already set externally.
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = '/app/.cache/ms-playwright';
+}
+
 let browser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {

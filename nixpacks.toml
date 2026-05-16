@@ -28,8 +28,12 @@ cmds = [
 # Playwright 1.49+ uses chromium_headless_shell as the default for
 # chromium.launch() — the regular chromium binary alone isn't enough, so we
 # install BOTH. --with-deps pulls in glibc/font deps on the build image.
+#
+# Browsers go into /app/.cache so they survive the nixpacks build→runtime
+# image copy. The runtime sets PLAYWRIGHT_BROWSERS_PATH to the same path
+# from pdf.ts before launching Chromium.
 cmds = [
-  "pnpm exec playwright install --with-deps chromium chromium-headless-shell"
+  "PLAYWRIGHT_BROWSERS_PATH=/app/.cache/ms-playwright pnpm exec playwright install --with-deps chromium chromium-headless-shell"
 ]
 
 [start]
