@@ -74,9 +74,10 @@ function extract(text: string) {
 async function extractTextFromFile(file: Express.Multer.File): Promise<string> {
   const name = file.originalname.toLowerCase();
   if (name.endsWith('.pdf') || file.mimetype === 'application/pdf') {
-    const mod: any = await import('pdf-parse');
-    const pdfParse = (mod.default ?? mod) as (b: Buffer) => Promise<{ text: string }>;
-    const r = await pdfParse(file.buffer);
+    // pdf-parse v2 exports a PDFParse class (not a callable default).
+    const { PDFParse } = await import('pdf-parse');
+    const parser = new PDFParse({ data: file.buffer });
+    const r = await parser.getText();
     return r.text ?? '';
   }
   if (name.endsWith('.docx') || file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {

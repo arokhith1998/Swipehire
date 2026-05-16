@@ -119,9 +119,13 @@ export default function Jobs() {
   }, [debounced]);
 
   const feedKey = `/api/jobs/feed?${queryString}`;
-  const { data: feedData, isLoading } = useQuery<{ jobs: any[]; count: number }>({
+  const { data: feedData, isLoading, isFetching } = useQuery<{ jobs: any[]; count: number }>({
     queryKey: [feedKey],
     queryFn: getQueryFn({ on401: "throw" }),
+    // Keep the previous result visible while a new filter is fetching — much
+    // less jarring than wiping the list to the loading state on every keystroke.
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
   });
   const jobs = feedData?.jobs ?? [];
   const chips = activeChips(filters);
@@ -234,7 +238,10 @@ export default function Jobs() {
           <main className="col-span-9">
             <header className="mb-4 flex items-baseline justify-between">
               <h1 className="text-2xl font-bold text-gray-900">Discover jobs</h1>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 flex items-center gap-2">
+                {isFetching && !isLoading && (
+                  <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-label="Updating" />
+                )}
                 {isLoading ? "" : `${jobs.length} scored`}
               </span>
             </header>

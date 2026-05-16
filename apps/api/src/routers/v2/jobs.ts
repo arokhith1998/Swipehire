@@ -198,8 +198,9 @@ async function buildFeed(req: Request, res: Response) {
   let whereSql = wheres[0];
   for (let i = 1; i < wheres.length; i++) whereSql = sql`${whereSql} AND ${wheres[i]}`;
 
-  // Recent uses SQL order; relevance pulls 3× the limit, scores, then re-sorts in JS.
-  const overSample = sort === 'relevance' ? limit * 3 : limit;
+  // Recent uses SQL order; relevance pulls 2× the limit (capped at 80) so the
+  // scorer has some headroom to reshuffle without blowing latency.
+  const overSample = sort === 'relevance' ? Math.min(limit * 2, 80) : limit;
   const orderSql = sort === 'recent'
     ? sql`ORDER BY created_at DESC NULLS LAST`
     : sql`ORDER BY created_at DESC NULLS LAST`; // pre-sort by recency before scoring

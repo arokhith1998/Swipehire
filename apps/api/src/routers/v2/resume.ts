@@ -184,10 +184,10 @@ resumeRouter.post(
     try {
       const name = file.originalname.toLowerCase();
       if (name.endsWith('.pdf') || file.mimetype === 'application/pdf') {
-        // pdf-parse v2 ships an async API and ESM-friendly default export.
-        const mod: any = await import('pdf-parse');
-        const pdfParse = (mod.default ?? mod) as (b: Buffer) => Promise<{ text: string }>;
-        const result = await pdfParse(file.buffer);
+        // pdf-parse v2 exports a PDFParse class (not a callable default).
+        const { PDFParse } = await import('pdf-parse');
+        const parser = new PDFParse({ data: file.buffer });
+        const result = await parser.getText();
         text = result.text ?? '';
       } else if (name.endsWith('.docx') || file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         const mammoth = (await import('mammoth')) as any;
