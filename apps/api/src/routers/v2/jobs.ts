@@ -125,7 +125,34 @@ function flattenForUi(job: ScoringJob, match: MatchResult, raw: any) {
 const feedQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   excludeSeen: z.coerce.boolean().default(true),
+  sort: z.enum(['relevance', 'recent']).default('relevance'),
+  q: z.string().trim().max(120).optional(),               // free-text across title/company/desc
+  location: z.string().trim().max(120).optional(),        // city or state substring
+  remote: z.enum(['remote', 'hybrid', 'onsite']).optional(),
+  visa: z.coerce.boolean().optional(),
+  salaryMin: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  country: z.enum(['us', 'any']).default('us'),
 });
+
+/**
+ * SQL fragment that keeps rows whose `location` looks US-based.
+ *   - Matches a US state code as a standalone word (Boston, MA), OR
+ *   - mentions 'United States' / 'USA' / 'U.S.', OR
+ *   - starts with 'Remote' (we treat unqualified Remote as US since 95%+ of
+ *     our ingested orgs are US-headquartered)
+ *   - Then excludes obvious non-US tokens (Bengaluru, London, Toronto …)
+ *     so jobs like "Bengaluru, IN" (which would otherwise match 'IN' = Indiana)
+ *     get filtered out.
+ */
+const US_LOCATION_FILTER = sql`
+  (
+    location IS NULL
+    OR location ~* '\\m(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\\M'
+    OR location ~* 'united states|\\mUSA\\M|U\\.S\\.|U\\. S\\.'
+    OR location ~* '^remote'
+  )
+  AND (location IS NULL OR location !~* '\\m(india|bengaluru|bangalore|mumbai|delhi|hyderabad|pune|chennai|noida|gurgaon|canada|toronto|vancouver|montreal|ottawa|united kingdom|\\mUK\\M|london|manchester|edinburgh|germany|berlin|munich|hamburg|france|paris|netherlands|amsterdam|spain|barcelona|madrid|italy|rome|milan|sweden|stockholm|switzerland|zurich|geneva|ireland|dublin|poland|warsaw|portugal|lisbon|israel|tel aviv|australia|sydney|melbourne|new zealand|auckland|singapore|hong kong|japan|tokyo|china|shanghai|south korea|seoul|brazil|sao paulo|mexico|mexico city|argentina|colombia|chile|south africa|uae|dubai|abu dhabi|saudi arabia|riyadh|egypt|cairo|nigeria|lagos|kenya|nairobi)\\M')
+`;
 
 async function buildFeed(req: Request, res: Response) {
   const userId = authedUserId(req);
@@ -133,38 +160,73 @@ async function buildFeed(req: Request, res: Response) {
 
   const parsed = feedQuery.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const { limit, excludeSeen } = parsed.data;
+  const { limit, excludeSeen, sort, q, location, remote, visa, salaryMin, country } = parsed.data;
 
   const user = await loadScoringUser(userId);
   if (!user) return res.status(401).json({ error: 'user_not_found' });
 
-  const seenFilter = excludeSeen
-    ? sql`AND id NOT IN (SELECT job_id FROM user_job_interactions WHERE user_id = ${userId})`
-    : sql``;
+  // Compose WHERE clauses.
+  const wheres: any[] = [sql`1=1`];
+  if (excludeSeen) {
+    wheres.push(sql`id NOT IN (SELECT job_id FROM user_job_interactions WHERE user_id = ${userId})`);
+  }
+  if (country === 'us') {
+    wheres.push(US_LOCATION_FILTER);
+  }
+  if (q) {
+    const pat = `%${q}%`;
+    wheres.push(sql`(title ILIKE ${pat} OR company ILIKE ${pat} OR description ILIKE ${pat})`);
+  }
+  if (location) {
+    wheres.push(sql`location ILIKE ${`%${location}%`}`);
+  }
+  if (remote === 'remote') {
+    wheres.push(sql`(is_remote = true OR location ~* '^remote')`);
+  } else if (remote === 'hybrid') {
+    wheres.push(sql`is_hybrid = true`);
+  } else if (remote === 'onsite') {
+    wheres.push(sql`(COALESCE(is_remote, false) = false AND COALESCE(is_hybrid, false) = false)`);
+  }
+  if (visa === true) {
+    wheres.push(sql`sponsors_visa = true`);
+  }
+  if (salaryMin !== undefined) {
+    wheres.push(sql`(salary_max IS NULL OR salary_max >= ${salaryMin})`);
+  }
+
+  // Stitch the wheres into one chain.
+  let whereSql = wheres[0];
+  for (let i = 1; i < wheres.length; i++) whereSql = sql`${whereSql} AND ${wheres[i]}`;
+
+  // Recent uses SQL order; relevance pulls 3× the limit, scores, then re-sorts in JS.
+  const overSample = sort === 'relevance' ? limit * 3 : limit;
+  const orderSql = sort === 'recent'
+    ? sql`ORDER BY created_at DESC NULLS LAST`
+    : sql`ORDER BY created_at DESC NULLS LAST`; // pre-sort by recency before scoring
+
   const r = await db.execute(sql`
     SELECT id, title, company, location, description, requirements,
            salary_min, salary_max, type, is_remote, is_hybrid, sponsors_visa,
            h1b_approval_rate, recent_sponsorship_count, external_url, created_at
     FROM jobs
-    WHERE 1=1 ${seenFilter}
-    ORDER BY created_at DESC NULLS LAST
-    LIMIT ${limit * 2}
+    WHERE ${whereSql}
+    ${orderSql}
+    LIMIT ${overSample}
   `);
 
   const rawRows = r.rows ?? [];
   const jobs = rawRows.map(rowToScoringJob);
   if (jobs.length === 0) {
-    return res.json({ jobs: [], count: 0, hint: 'No jobs yet — run pnpm db:seed' });
+    return res.json({ jobs: [], count: 0, hint: 'No jobs match those filters — try widening them' });
   }
 
   const matches = await scoreFeedForUser(user, jobs, { skipAuthenticity: true });
 
-  const merged = jobs
-    .map((j, i) => flattenForUi(j, matches[i], rawRows[i]))
-    .sort((a, b) => (b.interviewProbability ?? 0) - (a.interviewProbability ?? 0))
-    .slice(0, limit);
-
-  res.json({ jobs: merged, count: merged.length });
+  const flat = jobs.map((j, i) => flattenForUi(j, matches[i], rawRows[i]));
+  const ordered = sort === 'relevance'
+    ? flat.sort((a, b) => (b.interviewProbability ?? 0) - (a.interviewProbability ?? 0))
+    : flat;     // SQL already ordered by created_at DESC
+  res.json({ jobs: ordered.slice(0, limit), count: Math.min(ordered.length, limit) });
 }
 
 jobsRouter.get('/api/jobs', buildFeed);

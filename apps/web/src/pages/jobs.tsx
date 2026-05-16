@@ -7,6 +7,7 @@
  *     Each row clicks through to /jobs/:id.
  */
 
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { getQueryFn, apiRequest } from "@/lib/api";
@@ -15,7 +16,56 @@ import { TopNavigation } from "@/components/TopNavigation";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Globe, MapPin, Building, Heart, Bookmark, X, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Briefcase, Globe, MapPin, Building, Heart, Bookmark, X, ExternalLink, Search, SlidersHorizontal } from "lucide-react";
+
+type SortMode = "relevance" | "recent";
+type RemoteMode = "any" | "remote" | "hybrid" | "onsite";
+
+interface FilterState {
+  q: string;
+  sort: SortMode;
+  location: string;
+  remote: RemoteMode;
+  visaOnly: boolean;
+  salaryMin: number | null;
+  country: "us" | "any";
+}
+
+const DEFAULT_FILTERS: FilterState = {
+  q: "",
+  sort: "relevance",
+  location: "",
+  remote: "any",
+  visaOnly: false,
+  salaryMin: null,
+  country: "us",
+};
+
+function useDebounced<T>(value: T, ms = 300): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
+
+function activeChips(f: FilterState): string[] {
+  const chips: string[] = [];
+  if (f.country === "us") chips.push("United States");
+  else chips.push("Anywhere");
+  if (f.location) chips.push(`In: ${f.location}`);
+  if (f.remote !== "any") chips.push(f.remote === "remote" ? "Remote" : f.remote === "hybrid" ? "Hybrid" : "On-site");
+  if (f.visaOnly) chips.push("Visa sponsors");
+  if (f.salaryMin) chips.push(`≥ $${(f.salaryMin / 1000).toFixed(0)}K`);
+  return chips;
+}
 
 function labelColor(label: string): string {
   if (label === "Strong fit") return "bg-green-100 text-green-800";
@@ -53,11 +103,29 @@ export default function Jobs() {
   });
   const user = meData?.user;
 
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const debounced = useDebounced(filters, 350);
+
+  const queryString = useMemo(() => {
+    const sp = new URLSearchParams();
+    if (debounced.q.trim()) sp.set("q", debounced.q.trim());
+    sp.set("sort", debounced.sort);
+    sp.set("country", debounced.country);
+    if (debounced.location.trim()) sp.set("location", debounced.location.trim());
+    if (debounced.remote !== "any") sp.set("remote", debounced.remote);
+    if (debounced.visaOnly) sp.set("visa", "true");
+    if (debounced.salaryMin) sp.set("salaryMin", String(debounced.salaryMin));
+    return sp.toString();
+  }, [debounced]);
+
+  const feedKey = `/api/jobs/feed?${queryString}`;
   const { data: feedData, isLoading } = useQuery<{ jobs: any[]; count: number }>({
-    queryKey: ["/api/jobs/feed"],
+    queryKey: [feedKey],
     queryFn: getQueryFn({ on401: "throw" }),
   });
   const jobs = feedData?.jobs ?? [];
+  const chips = activeChips(filters);
+  const isFiltered = chips.length > 1 || filters.q.length > 0 || filters.sort !== "relevance";
 
   const interactMutation = useMutation({
     mutationFn: async ({ jobId, action, matchScore, visaScore }: any) => {
@@ -69,7 +137,7 @@ export default function Jobs() {
       return r.json();
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/jobs/feed"] });
+      qc.invalidateQueries({ queryKey: [feedKey] });
       qc.invalidateQueries({ queryKey: ["/api/jobs/liked"] });
       qc.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
@@ -170,6 +238,22 @@ export default function Jobs() {
                 {isLoading ? "" : `${jobs.length} scored`}
               </span>
             </header>
+
+            <SearchFilterBar filters={filters} onChange={setFilters} chips={chips} />
+            {isFiltered && (
+              <div className="mb-4 flex items-center gap-2 text-xs">
+                <span className="text-gray-500">Filtered by:</span>
+                {chips.map(c => (
+                  <Badge key={c} variant="secondary" className="font-normal">{c}</Badge>
+                ))}
+                <button
+                  onClick={() => setFilters(DEFAULT_FILTERS)}
+                  className="text-primary hover:underline ml-1"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
 
             {isLoading && <div className="text-gray-500 py-8">Loading scored jobs…</div>}
 
@@ -291,6 +375,122 @@ export default function Jobs() {
       </div>
 
       <BottomNavigation currentPath="/" />
+    </div>
+  );
+}
+
+function SearchFilterBar({
+  filters, onChange, chips,
+}: { filters: FilterState; onChange: (f: FilterState) => void; chips: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<FilterState>(filters);
+  // Sync drafted state when caller resets externally (e.g. Clear all).
+  useEffect(() => { setDraft(filters); }, [filters]);
+
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <Input
+          value={filters.q}
+          onChange={(e) => onChange({ ...filters, q: e.target.value })}
+          placeholder="Search title, company, or keyword…"
+          className="pl-9"
+        />
+      </div>
+
+      <Select value={filters.sort} onValueChange={(v) => onChange({ ...filters, sort: v as SortMode })}>
+        <SelectTrigger className="w-36">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="relevance">Relevance</SelectItem>
+          <SelectItem value="recent">Most recent</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) setDraft(filters); }}>
+        <DialogTrigger asChild>
+          <Button variant="outline">
+            <SlidersHorizontal className="w-4 h-4 mr-2" />
+            Filters
+            {chips.length > 1 && (
+              <Badge variant="secondary" className="ml-2 px-1.5 py-0">{chips.length - 1}</Badge>
+            )}
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Filter jobs</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Select value={draft.country} onValueChange={(v) => setDraft({ ...draft, country: v as "us" | "any" })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="us">United States only (default)</SelectItem>
+                  <SelectItem value="any">Anywhere</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="loc">City or state</Label>
+              <Input
+                id="loc"
+                value={draft.location}
+                onChange={(e) => setDraft({ ...draft, location: e.target.value })}
+                placeholder="e.g. New York, San Francisco, TX"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Work mode</Label>
+              <Select value={draft.remote} onValueChange={(v) => setDraft({ ...draft, remote: v as RemoteMode })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any</SelectItem>
+                  <SelectItem value="remote">Remote only</SelectItem>
+                  <SelectItem value="hybrid">Hybrid only</SelectItem>
+                  <SelectItem value="onsite">On-site only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sal">Minimum salary (USD)</Label>
+              <Input
+                id="sal"
+                type="number"
+                inputMode="numeric"
+                value={draft.salaryMin ?? ""}
+                onChange={(e) => setDraft({ ...draft, salaryMin: e.target.value ? parseInt(e.target.value, 10) : null })}
+                placeholder="e.g. 120000"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <Label htmlFor="visa" className="cursor-pointer">Visa sponsors only</Label>
+              <Switch
+                id="visa"
+                checked={draft.visaOnly}
+                onCheckedChange={(v) => setDraft({ ...draft, visaOnly: v })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setDraft(DEFAULT_FILTERS); }}>
+              Reset
+            </Button>
+            <Button onClick={() => { onChange(draft); setOpen(false); }}>
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
