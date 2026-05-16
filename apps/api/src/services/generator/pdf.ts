@@ -19,7 +19,7 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
 }
 
 import type { Browser } from 'playwright';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 
 let browser: Browser | null = null;
@@ -65,7 +65,6 @@ function findChromiumExecutable(): string | null {
   for (const root of roots) {
     if (!existsSync(root)) continue;
     try {
-      const { readdirSync } = require('node:fs') as typeof import('node:fs');
       const shellDir = readdirSync(root).find(n => n.startsWith('chromium_headless_shell-'));
       if (shellDir) {
         const exe = `${root}/${shellDir}/chrome-headless-shell-linux64/chrome-headless-shell`;
