@@ -36,11 +36,24 @@ const CV_SYSTEM = `You generate ATS-safe one-page resumes. You output strict JSO
 - Total content must fit one US Letter page in Calibri 9.5pt. Aim for ≤6 experience bullets total across roles, ≤4 projects, ≤3 lines of summary.
 - Group skills into 3-5 logical categories (e.g. Languages, Cloud, Data, etc.) — categorize based on what the role asks for.`;
 
-const COVER_LETTER_SYSTEM = `You generate one-page cover letters. Output strict JSON. Rules:
+const COVER_LETTER_SYSTEM = `You generate one-page cover letters. Output STRICT JSON in this exact shape:
+{
+  "candidateName": "Jane Doe",
+  "contact": { "location": "...", "phone": "...", "email": "...", "linkedin": "...", "portfolio": "..." },
+  "company": "...",
+  "role": "...",
+  "date": "May 16, 2026",
+  "bodyHtml": "<p>First paragraph...</p><p>Second paragraph...</p><p>Third paragraph...</p>"
+}
+
+The "bodyHtml" field is REQUIRED and must be a single string containing 3-4 <p>...</p> blocks.
+Do NOT split paragraphs into an array. Do NOT use "body", "content", "letter", or any other key — only "bodyHtml".
+
+Rules for the letter content:
 - Pull facts only from the candidate's resume bank. Never fabricate experience.
 - 3-4 short paragraphs. Hook in para 1 (why this role/company specifically), 2-3 concrete examples in para 2-3 mapping the candidate's experience to job requirements, sign-off in final para.
 - Tone: confident but not boastful, specific not generic. Avoid "passionate", "synergy", "dynamic team player".
-- Output the body as HTML <p> tags only — no markdown, no headers, no greeting (the template adds it).`;
+- Inside bodyHtml use only <p> and <strong> tags — no markdown, no headers, no greeting (the template adds it).`;
 
 const CV_SCHEMA = {
   type: 'object',
@@ -220,8 +233,31 @@ Location: ${ctx.user.location ?? ''}`;
   catch { throw new Error('openai returned non-JSON: ' + raw.slice(0, 200)); }
 
   const fullName = `${ctx.user.firstName} ${ctx.user.lastName}`.trim();
+
+  // Coerce any of the common shapes the model might return into a single
+  // HTML string with <p> blocks.
+  function toBodyHtml(p: any): string {
+    if (typeof p.bodyHtml === 'string' && p.bodyHtml.trim()) return p.bodyHtml;
+    if (Array.isArray(p.paragraphs)) {
+      return p.paragraphs.map((s: any) => `<p>${String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`).join('');
+    }
+    for (const key of ['body', 'content', 'letter', 'text', 'message']) {
+      const v = p[key];
+      if (typeof v === 'string' && v.trim()) {
+        // If already has <p>, use as-is; otherwise split on blank lines.
+        if (/<p[\s>]/i.test(v)) return v;
+        const paras = v.split(/\n\s*\n/).map((s: string) => s.trim()).filter(Boolean);
+        return paras.map((s: string) => `<p>${s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</p>`).join('');
+      }
+      if (Array.isArray(v)) {
+        return v.map((s: any) => `<p>${String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`).join('');
+      }
+    }
+    return '';
+  }
+
   const cl: GeneratedCoverLetter = {
-    candidateName: parsed.candidateName || fullName,
+    candidateName: parsed.candidateName || parsed.name || fullName,
     contact: {
       location: parsed.contact?.location || ctx.user.location || '',
       phone: parsed.contact?.phone || ctx.user.phone || undefined,
@@ -232,10 +268,10 @@ Location: ${ctx.user.location ?? ''}`;
     company: parsed.company || ctx.job.company,
     role: parsed.role || ctx.job.title,
     date: parsed.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-    bodyHtml: parsed.bodyHtml || (typeof parsed.body === 'string' ? `<p>${parsed.body}</p>` : ''),
+    bodyHtml: toBodyHtml(parsed),
   };
   if (!cl.bodyHtml.trim()) {
-    throw new Error('openai returned empty cover letter body');
+    throw new Error('openai returned empty cover letter body (keys=' + Object.keys(parsed).join(',') + ')');
   }
   return cl;
 }
