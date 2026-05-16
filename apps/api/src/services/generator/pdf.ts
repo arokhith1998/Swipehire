@@ -19,11 +19,45 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
 }
 
 import type { Browser } from 'playwright';
+import { existsSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 
 let browser: Browser | null = null;
+let installPromise: Promise<void> | null = null;
+
+/** Install chromium-headless-shell at startup if the binary isn't already there.
+ *  Idempotent + cached: only runs once per process. */
+async function ensureInstalled(): Promise<void> {
+  if (installPromise) return installPromise;
+  const root = process.env.PLAYWRIGHT_BROWSERS_PATH || '/app/.cache/ms-playwright';
+  if (existsSync(root)) {
+    installPromise = Promise.resolve();
+    return installPromise;
+  }
+  // eslint-disable-next-line no-console
+  console.log('[pdf] Chromium not found at', root, '— installing…');
+  installPromise = new Promise<void>((resolve, reject) => {
+    const proc = spawn('npx', ['playwright', 'install', 'chromium-headless-shell'], {
+      env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: root },
+      stdio: 'inherit',
+    });
+    proc.on('exit', code => {
+      if (code === 0) {
+        // eslint-disable-next-line no-console
+        console.log('[pdf] Chromium install done');
+        resolve();
+      } else {
+        reject(new Error(`playwright install exited ${code}`));
+      }
+    });
+    proc.on('error', reject);
+  });
+  return installPromise;
+}
 
 async function getBrowser(): Promise<Browser> {
   if (browser?.isConnected()) return browser;
+  await ensureInstalled();
   // Dynamic import so the env var assignment above always executes first.
   const { chromium } = await import('playwright');
   browser = await chromium.launch({ args: ['--no-sandbox'] });
