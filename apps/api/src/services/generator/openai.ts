@@ -162,16 +162,35 @@ Education (profile field): ${ctx.user.education ?? ''}`;
 
   const raw = r.choices[0]?.message?.content;
   if (!raw) throw new Error('empty response from openai');
-  const parsed = JSON.parse(raw) as GeneratedCV;
-  // Lightweight validation — make sure required top-level fields exist; OpenAI sometimes drops one.
-  if (!parsed.name || !parsed.contact?.email || !Array.isArray(parsed.experience)) {
-    throw new Error('malformed CV JSON from openai');
+  let parsed: any;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error('openai returned non-JSON: ' + raw.slice(0, 200)); }
+
+  // Normalize: fill in anything the model omitted with candidate-profile fallbacks
+  // rather than rejecting the whole response.
+  const fullName = `${ctx.user.firstName} ${ctx.user.lastName}`.trim();
+  const cv: GeneratedCV = {
+    name: parsed.name || fullName,
+    headline: parsed.headline || ctx.job.title || 'Candidate',
+    contact: {
+      location: parsed.contact?.location || ctx.user.location || '',
+      phone: parsed.contact?.phone || ctx.user.phone || undefined,
+      email: parsed.contact?.email || ctx.user.email,
+      linkedin: parsed.contact?.linkedin,
+      portfolio: parsed.contact?.portfolio,
+    },
+    summary: parsed.summary || ctx.user.bio || '',
+    skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+    experience: Array.isArray(parsed.experience) ? parsed.experience : [],
+    projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+    education: Array.isArray(parsed.education) ? parsed.education : [],
+    certifications: Array.isArray(parsed.certifications) ? parsed.certifications : undefined,
+  };
+  if (cv.experience.length === 0 && cv.education.length === 0) {
+    // Nothing usable — caller should retry or surface error.
+    throw new Error('openai returned empty CV (no experience or education)');
   }
-  // Best-effort backfill from candidate profile if model omitted them.
-  parsed.contact.email ||= ctx.user.email;
-  parsed.contact.location ||= ctx.user.location ?? '';
-  if (!parsed.contact.phone && ctx.user.phone) parsed.contact.phone = ctx.user.phone;
-  return parsed;
+  return cv;
 }
 
 export async function generateCoverLetter(ctx: GeneratorContext): Promise<GeneratedCoverLetter> {
@@ -196,14 +215,29 @@ Location: ${ctx.user.location ?? ''}`;
 
   const raw = r.choices[0]?.message?.content;
   if (!raw) throw new Error('empty response from openai');
-  const parsed = JSON.parse(raw) as GeneratedCoverLetter;
-  if (!parsed.bodyHtml || !parsed.candidateName) {
-    throw new Error('malformed cover letter JSON from openai');
+  let parsed: any;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error('openai returned non-JSON: ' + raw.slice(0, 200)); }
+
+  const fullName = `${ctx.user.firstName} ${ctx.user.lastName}`.trim();
+  const cl: GeneratedCoverLetter = {
+    candidateName: parsed.candidateName || fullName,
+    contact: {
+      location: parsed.contact?.location || ctx.user.location || '',
+      phone: parsed.contact?.phone || ctx.user.phone || undefined,
+      email: parsed.contact?.email || ctx.user.email,
+      linkedin: parsed.contact?.linkedin,
+      portfolio: parsed.contact?.portfolio,
+    },
+    company: parsed.company || ctx.job.company,
+    role: parsed.role || ctx.job.title,
+    date: parsed.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+    bodyHtml: parsed.bodyHtml || (typeof parsed.body === 'string' ? `<p>${parsed.body}</p>` : ''),
+  };
+  if (!cl.bodyHtml.trim()) {
+    throw new Error('openai returned empty cover letter body');
   }
-  parsed.contact = parsed.contact ?? { location: ctx.user.location ?? '', email: ctx.user.email };
-  parsed.contact.email ||= ctx.user.email;
-  if (!parsed.contact.phone && ctx.user.phone) parsed.contact.phone = ctx.user.phone;
-  return parsed;
+  return cl;
 }
 
 // Keep schema constants exported in case we want to switch to OpenAI's structured-outputs API later.
