@@ -8,6 +8,8 @@ import { getQueryFn } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 import Onboarding from "@/pages/onboarding";
 import Jobs from "@/pages/jobs";
 import Liked from "@/pages/liked";
@@ -125,6 +127,8 @@ function AppContent() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/">
         <AuthWrapper>

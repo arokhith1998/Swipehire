@@ -288,13 +288,16 @@ export default function Login() {
                         </FormItem>
                       )}
                     />
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       className="w-full bg-teal-600 hover:bg-teal-700"
                       disabled={loginMutation.isPending}
                     >
                       {loginMutation.isPending ? "Signing in..." : "Sign In"}
                     </Button>
+                    <div className="text-center text-sm">
+                      <a href="/forgot-password" className="text-teal-600 hover:underline">Forgot your password?</a>
+                    </div>
                   </form>
                 </Form>
 
