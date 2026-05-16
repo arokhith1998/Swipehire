@@ -9,6 +9,12 @@
 [phases.setup]
 nixPkgs = ["nodejs_22", "pnpm-9_x"]
 
+# Both build and runtime — keep Playwright browsers inside /app so they
+# survive the nixpacks build → runtime image copy. (Default ~/.cache/ms-playwright
+# lives at /root/.cache which is NOT preserved into the runtime image.)
+[variables]
+PLAYWRIGHT_BROWSERS_PATH = "/app/.cache/ms-playwright"
+
 [phases.install]
 cmds = [
   "pnpm install --frozen-lockfile"
@@ -16,11 +22,14 @@ cmds = [
 
 [phases.build]
 # We don't compile to dist — the api/worker start scripts use tsx in prod.
-# This phase installs the Chromium binary that Playwright needs at runtime
-# (for HTML→PDF resume rendering on api, and liveness checks on worker).
-# --with-deps pulls in glibc/font dependencies on the build image.
+# This phase installs the Chromium binaries that Playwright needs at runtime
+# (HTML→PDF resume rendering on api, and liveness checks on worker).
+#
+# Playwright 1.49+ uses chromium_headless_shell as the default for
+# chromium.launch() — the regular chromium binary alone isn't enough, so we
+# install BOTH. --with-deps pulls in glibc/font deps on the build image.
 cmds = [
-  "pnpm exec playwright install --with-deps chromium"
+  "pnpm exec playwright install --with-deps chromium chromium-headless-shell"
 ]
 
 [start]
