@@ -19,6 +19,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { User, Camera, MapPin, Briefcase, GraduationCap, Plus, X } from "lucide-react";
 import { LocationAutocomplete } from "@/components/LocationAutocomplete";
 import { SwipeHireLogo } from "@/components/SwipeHireLogo";
+import { TopNavigation } from "@/components/TopNavigation";
 import { MyResumes } from "@/components/MyResumes";
 
 const profileSchema = z.object({
@@ -212,10 +213,13 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="text-center mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
+      <TopNavigation />
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="text-center mb-8 md:hidden">
           <SwipeHireLogo size="lg" className="mx-auto mb-4" />
+        </div>
+        <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Complete Your Profile
           </h1>

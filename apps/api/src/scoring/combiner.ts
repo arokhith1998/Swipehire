@@ -8,16 +8,24 @@
 
 import type { Subscore, SubscoreKey } from '@swipehire/shared';
 
-/** Default weights — used when no role-family-specific weights are loaded. */
+/**
+ * Default weights — used when no role-family-specific weights are loaded.
+ *
+ * Rebalanced 2026-05-16 to lean harder on signals candidates care about
+ * (skills + title) and de-emphasise weak ones (recency, salary band).
+ * Without this, even a perfect title + 80% skill match capped around 50%
+ * because the long tail of lukewarm subscores dragged the weighted average
+ * down.
+ */
 const DEFAULT_WEIGHTS: Record<SubscoreKey, number> = {
-  skillsSemantic:    0.30,
-  titleAlignment:    0.18,
+  skillsSemantic:    0.32,   // was 0.30
+  titleAlignment:    0.26,   // was 0.18 — the biggest user-perceptible signal
   seniorityFit:      0.12,
-  locationFit:       0.10,
+  locationFit:       0.08,   // was 0.10
   domainExperience:  0.08,
-  visaCompatibility: 0.10,
-  salaryFit:         0.06,
-  recencySignal:     0.06,
+  visaCompatibility: 0.08,   // was 0.10
+  salaryFit:         0.03,   // was 0.06 — often missing, kept low weight
+  recencySignal:     0.03,   // was 0.06 — same reason
 };
 
 /** Per-role-family overrides — populated from ml.calibration_models in v2.1. */

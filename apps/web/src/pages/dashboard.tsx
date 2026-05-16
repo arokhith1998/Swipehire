@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn, apiRequest } from "@/lib/api";
 import { BottomNavigation } from "@/components/BottomNavigation";
+import { TopNavigation } from "@/components/TopNavigation";
 import { SwipeHireLogo } from "@/components/SwipeHireLogo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -64,12 +65,18 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
+      <TopNavigation />
+      {/* Mobile-only secondary header — desktop gets TopNavigation above */}
+      <div className="md:hidden bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto">
           <SwipeHireLogo size="md" className="mb-1" />
           <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-500">Visa-aware job matching progress</p>
         </div>
+      </div>
+      <div className="hidden md:block max-w-2xl mx-auto px-6 pt-6">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-sm text-gray-500">Visa-aware job matching progress</p>
       </div>
 
       <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-6">

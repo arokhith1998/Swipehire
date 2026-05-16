@@ -123,7 +123,8 @@ function flattenForUi(job: ScoringJob, match: MatchResult, raw: any) {
 }
 
 const feedQuery = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(25),
+  // 100 default so users don't run out of cards after a quick scroll, max 200.
+  limit: z.coerce.number().int().min(1).max(200).default(100),
   excludeSeen: z.coerce.boolean().default(true),
   sort: z.enum(['relevance', 'recent']).default('relevance'),
   q: z.string().trim().max(120).optional(),               // free-text across title/company/desc
@@ -198,9 +199,9 @@ async function buildFeed(req: Request, res: Response) {
   let whereSql = wheres[0];
   for (let i = 1; i < wheres.length; i++) whereSql = sql`${whereSql} AND ${wheres[i]}`;
 
-  // Recent uses SQL order; relevance pulls 2× the limit (capped at 80) so the
-  // scorer has some headroom to reshuffle without blowing latency.
-  const overSample = sort === 'relevance' ? Math.min(limit * 2, 80) : limit;
+  // Recent uses SQL order; relevance pulls 1.3× the limit (capped at 150)
+  // so the scorer has headroom to reshuffle without blowing latency.
+  const overSample = sort === 'relevance' ? Math.min(Math.ceil(limit * 1.3), 150) : limit;
   const orderSql = sort === 'recent'
     ? sql`ORDER BY created_at DESC NULLS LAST`
     : sql`ORDER BY created_at DESC NULLS LAST`; // pre-sort by recency before scoring

@@ -28,13 +28,31 @@ function jobBlock(ctx: GeneratorContext): string {
   return `Title: ${ctx.job.title}\nCompany: ${ctx.job.company}\nLocation: ${ctx.job.location ?? 'unspecified'}\n\nDescription:\n${ctx.job.description.slice(0, 6000)}`;
 }
 
-const CV_SYSTEM = `You generate ATS-safe one-page resumes. You output strict JSON conforming to the requested schema. Rules:
+const CV_SYSTEM = `You generate ATS-safe one-page resumes. You output strict JSON conforming to the requested schema.
+
+CONTENT RULES:
 - Pull facts ONLY from the candidate's resume bank. Never invent employers, dates, projects, degrees, or metrics.
 - Tailor wording, ordering, and emphasis to the target job — surface the most relevant bullets first.
-- Include experiences and projects from BOTH the primary and extra resumes when relevant; treat the extras as additional source material.
-- Bullets must be specific, action-led, and quantified where the source provides numbers. Drop adverbs and filler.
-- Total content must fit one US Letter page in Calibri 9.5pt. Aim for ≤6 experience bullets total across roles, ≤4 projects, ≤3 lines of summary.
-- Group skills into 3-5 logical categories (e.g. Languages, Cloud, Data, etc.) — categorize based on what the role asks for.`;
+- Include experiences and projects from BOTH the primary and extra resumes when relevant; treat extras as additional source material.
+
+BULLET STRUCTURE — STAR FORMAT (mandatory):
+Each experience bullet must follow Situation/Task → Action → Result. The result must be quantified whenever the source provides numbers.
+- Start with a strong action verb (Led, Built, Shipped, Drove, Reduced, Increased, Launched, Owned, …).
+- State WHAT you did and HOW (the action), then the measurable RESULT.
+- Drop adverbs, filler, and corporate jargon ("synergy", "passionate", "responsible for").
+Examples of the shape we want:
+  GOOD: "Built keyword + bid-management automation across Paid Search and Paid Social, cutting CPA 25% and lifting conversion 20%."
+  GOOD: "Led global pricing strategy for the Industrial BU; 8% market-share gain + 12% YoY revenue growth in EMEA."
+  BAD:  "Responsible for digital marketing campaigns and analytics."   (no action, no result)
+  BAD:  "Worked on improving the SEO strategy of the company."         (vague, unquantified)
+
+LAYOUT RULES (must fit one US Letter page at Calibri 9.5pt):
+- Summary: ≤ 3 lines.
+- Skills: 3-5 logical categories chosen to mirror what the JD asks for (e.g. "Performance Marketing", "Analytics & MarTech", "Pricing"). 6-12 items per category.
+- Experience: list the most recent 3-4 roles. 2-4 STAR bullets per role, ≤ 9 bullets total across all roles.
+- Projects: ≤ 3 entries, each a single STAR sentence.
+- Education: list each degree once with school + dates. Add 1 line of relevant coursework/honors only if it strengthens the fit.
+- Certifications: comma-separated single line, only if meaningful for the role.`;
 
 const COVER_LETTER_SYSTEM = `You generate one-page cover letters. Output STRICT JSON in this exact shape:
 {
