@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiRequest, getQueryFn } from "@/lib/api";
+import { GenerateDocsButton } from "@/components/GenerateDocsButton";
 import {
   MapPin, Building, Clock, Heart, Bookmark, ExternalLink,
   CheckCircle, AlertTriangle, Globe, DollarSign, ArrowLeft, Newspaper,
@@ -191,6 +192,8 @@ export function JobDetail({ job, onBack }: Props) {
                     <Heart className="w-4 h-4 mr-1.5" /> Like
                   </Button>
                 </div>
+
+                <GenerateDocsButton jobId={job.id} jobTitle={job.title} companyName={job.company} />
 
                 <p className="text-[11px] text-gray-400 leading-snug pt-1">
                   Current path: deep-link to the company's posting + log the application here so we can track outcomes.

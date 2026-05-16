@@ -16,8 +16,12 @@ cmds = [
 
 [phases.build]
 # We don't compile to dist — the api/worker start scripts use tsx in prod.
-# This phase exists so Nixpacks doesn't try to run a default build.
-cmds = ["echo 'no-op build (tsx in prod)'"]
+# This phase installs the Chromium binary that Playwright needs at runtime
+# (for HTML→PDF resume rendering on api, and liveness checks on worker).
+# --with-deps pulls in glibc/font dependencies on the build image.
+cmds = [
+  "pnpm exec playwright install --with-deps chromium"
+]
 
 [start]
 # Override per service in the Railway UI:
