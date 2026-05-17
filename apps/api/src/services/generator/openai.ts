@@ -93,13 +93,18 @@ HARD CAPS — MUST FIT ONE US LETTER PAGE AT CALIBRI 9.5PT
 ═══════════════════════════════════════════════════════════
   • Summary:        EXACTLY 2-3 sentences (~30-50 words). Front-load top 5 JD keywords.
   • Competencies:   EXACTLY 6-8 phrases. Each 2-4 words. These ARE the JD keywords from Step 1.
-  • Skills:         EXACTLY 4-5 category rows. Each row = "Category: item1, item2, item3, ..." with 5-10 items. Categories chosen to mirror the JD (e.g. "Performance Marketing", "Analytics & MarTech", "Pricing").
-  • Experience:     EXACTLY 3-4 most recent roles. 3-4 STAR bullets per role. ≤ 12 bullets total across all roles. First bullet of each role MUST contain at least one JD keyword.
-  • Projects:       0-3 entries. Each a SINGLE STAR sentence (1 bullet).
-  • Education:      All degrees the candidate has. One italic line of coursework per degree only if it strengthens the fit; otherwise just degree + school + dates.
+  • Skills:         EXACTLY 4-5 category rows. Each row = "Category: item1, item2, item3, ..." with 6-10 items. Categories chosen to mirror the JD (e.g. "Performance Marketing", "Analytics & MarTech", "Pricing").
+  • Experience:     3-4 most recent roles. 4 STAR bullets per role IS THE DEFAULT (3 only when you genuinely can't find a 4th JD-relevant bullet from the bank). First bullet of each role MUST contain at least one JD keyword.
+  • Projects:       2-3 entries (NOT zero — pull from the bank's project section, related side work, or notable course projects). Each a SINGLE STAR sentence.
+  • Education:      All degrees. One italic line of coursework / honors per degree if it strengthens the fit.
   • Certifications: Single comma-separated line, only certs meaningful to the role.
 
-If your draft exceeds these caps, CUT before submitting. A 14-bullet resume that overflows page 2 is worse than a 9-bullet one that fits.
+PACK THE PAGE. A blank lower third is worse than a tight, dense one — recruiters skim, and density signals depth. Aim for ~85-95% of the page used. If your draft has 3 bullets per role + 1 project, you're under-packed; pull more relevant material from the bank. Only CUT past the cap (>4 bullets, >3 projects) if the layout actually overflows.
+
+DATE FORMAT (mandatory):
+  • Use an en-dash with spaces and 3-letter month + 4-digit year: "Sep 2024 – Present", "Oct 2022 – Jul 2023".
+  • NEVER write "to" — always the en-dash character "–".
+  • Education dates: just the graduation month + year: "Dec 2024", "May 2020" (no range needed).
 
 ═══════════════════════════════════════════════════════════
 OUTPUT
@@ -264,6 +269,16 @@ Education (profile field): ${ctx.user.education ?? ''}`;
   // Normalize: fill in anything the model omitted with candidate-profile fallbacks
   // rather than rejecting the whole response.
   const fullName = `${ctx.user.firstName} ${ctx.user.lastName}`.trim();
+  // Safety-net date normalizer: even with the prompt rule, the model occasionally
+  // emits "to" or "-" instead of the en-dash. Force the en-dash.
+  const fixDates = (s: any): string => {
+    if (typeof s !== 'string') return s;
+    return s
+      .replace(/\s+to\s+/gi, ' – ')         // "Sep 2024 to Present" → "Sep 2024 – Present"
+      .replace(/\s+-\s+/g, ' – ')           // " - " → " – "
+      .replace(/\s+–+\s+/g, ' – ');         // collapse "—" or double en-dash
+  };
+
   const cv: GeneratedCV = {
     name: parsed.name || fullName,
     headline: parsed.headline || ctx.job.title || 'Candidate',
@@ -277,9 +292,15 @@ Education (profile field): ${ctx.user.education ?? ''}`;
     summary: parsed.summary || ctx.user.bio || '',
     competencies: Array.isArray(parsed.competencies) ? parsed.competencies.slice(0, 8) : undefined,
     skills: Array.isArray(parsed.skills) ? parsed.skills : [],
-    experience: Array.isArray(parsed.experience) ? parsed.experience : [],
-    projects: Array.isArray(parsed.projects) ? parsed.projects : [],
-    education: Array.isArray(parsed.education) ? parsed.education : [],
+    experience: Array.isArray(parsed.experience)
+      ? parsed.experience.map((e: any) => ({ ...e, dates: fixDates(e.dates) }))
+      : [],
+    projects: Array.isArray(parsed.projects)
+      ? parsed.projects.map((p: any) => ({ ...p, dates: p.dates ? fixDates(p.dates) : p.dates }))
+      : [],
+    education: Array.isArray(parsed.education)
+      ? parsed.education.map((ed: any) => ({ ...ed, dates: fixDates(ed.dates) }))
+      : [],
     certifications: Array.isArray(parsed.certifications) ? parsed.certifications : undefined,
   };
   if (cv.experience.length === 0 && cv.education.length === 0) {
