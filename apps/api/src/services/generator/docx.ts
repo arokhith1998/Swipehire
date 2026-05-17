@@ -12,11 +12,25 @@ import type { GeneratedCV, GeneratedCoverLetter } from './types.js';
 
 const ACCENT = '1A56DB';
 
-function header(name: string, headline: string, contactParts: string[]): Paragraph[] {
+interface ContactItem { label: string; url?: string; }
+
+function header(name: string, headline: string, items: ContactItem[]): Paragraph[] {
+  const children: (TextRun | ExternalHyperlink)[] = [];
+  items.forEach((item, i) => {
+    if (i > 0) children.push(new TextRun({ text: '  |  ', size: 17, color: '888888' }));
+    if (item.url) {
+      children.push(new ExternalHyperlink({
+        link: item.url,
+        children: [new TextRun({ text: item.label, size: 17, color: ACCENT, underline: { color: ACCENT } })],
+      }));
+    } else {
+      children.push(new TextRun({ text: item.label, size: 17, color: '444444' }));
+    }
+  });
   return [
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: name, bold: true, size: 32 })],   // 32 half-pts = 16pt
+      children: [new TextRun({ text: name, bold: true, size: 32 })],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -24,7 +38,7 @@ function header(name: string, headline: string, contactParts: string[]): Paragra
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: contactParts.join(' | '), size: 17, color: '444444' })],
+      children,
       border: { bottom: { color: ACCENT, space: 1, style: BorderStyle.SINGLE, size: 8 } },
       spacing: { after: 120 },
     }),
@@ -58,19 +72,23 @@ function rightAlignedRow(left: string, right: string, leftBold = true): Paragrap
   });
 }
 
-function contactPartsCV(cv: GeneratedCV): string[] {
-  const p: string[] = [];
-  if (cv.contact.location) p.push(cv.contact.location);
-  if (cv.contact.phone) p.push(cv.contact.phone);
-  if (cv.contact.email) p.push(cv.contact.email);
-  if (cv.contact.linkedin) p.push(cv.contact.linkedin.replace(/^https?:\/\//, ''));
-  if (cv.contact.portfolio) p.push(cv.contact.portfolio.replace(/^https?:\/\//, ''));
-  return p;
+function ensureHttp(u: string): string {
+  return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+}
+
+function contactItemsCV(cv: GeneratedCV): ContactItem[] {
+  const items: ContactItem[] = [];
+  if (cv.contact.location) items.push({ label: cv.contact.location });
+  if (cv.contact.phone) items.push({ label: cv.contact.phone });
+  if (cv.contact.email) items.push({ label: cv.contact.email, url: `mailto:${cv.contact.email}` });
+  if (cv.contact.linkedin) items.push({ label: cv.contact.linkedin.replace(/^https?:\/\//, ''), url: ensureHttp(cv.contact.linkedin) });
+  if (cv.contact.portfolio) items.push({ label: cv.contact.portfolio.replace(/^https?:\/\//, ''), url: ensureHttp(cv.contact.portfolio) });
+  return items;
 }
 
 export async function cvToDocx(cv: GeneratedCV): Promise<Buffer> {
   const children: Paragraph[] = [];
-  children.push(...header(cv.name, cv.headline, contactPartsCV(cv)));
+  children.push(...header(cv.name, cv.headline, contactItemsCV(cv)));
 
   // Summary
   children.push(sectionTitle('Summary'));
@@ -80,7 +98,7 @@ export async function cvToDocx(cv: GeneratedCV): Promise<Buffer> {
   if (cv.competencies?.length) {
     children.push(sectionTitle('Core Competencies'));
     children.push(new Paragraph({
-      children: [new TextRun({ text: cv.competencies.join('  ·  '), size: 18, bold: true, color: ACCENT })],
+      children: [new TextRun({ text: cv.competencies.join('  ·  '), size: 17, color: '333333' })],
       spacing: { after: 60 },
     }));
   }
@@ -154,14 +172,30 @@ export async function cvToDocx(cv: GeneratedCV): Promise<Buffer> {
   return Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
 }
 
-function contactPartsCL(cl: GeneratedCoverLetter): string[] {
-  const p: string[] = [];
-  if (cl.contact.location) p.push(cl.contact.location);
-  if (cl.contact.phone) p.push(cl.contact.phone);
-  if (cl.contact.email) p.push(cl.contact.email);
-  if (cl.contact.linkedin) p.push(cl.contact.linkedin.replace(/^https?:\/\//, ''));
-  if (cl.contact.portfolio) p.push(cl.contact.portfolio.replace(/^https?:\/\//, ''));
-  return p;
+function contactItemsCL(cl: GeneratedCoverLetter): ContactItem[] {
+  const items: ContactItem[] = [];
+  if (cl.contact.location) items.push({ label: cl.contact.location });
+  if (cl.contact.phone) items.push({ label: cl.contact.phone });
+  if (cl.contact.email) items.push({ label: cl.contact.email, url: `mailto:${cl.contact.email}` });
+  if (cl.contact.linkedin) items.push({ label: cl.contact.linkedin.replace(/^https?:\/\//, ''), url: ensureHttp(cl.contact.linkedin) });
+  if (cl.contact.portfolio) items.push({ label: cl.contact.portfolio.replace(/^https?:\/\//, ''), url: ensureHttp(cl.contact.portfolio) });
+  return items;
+}
+
+function contactRunsFromItems(items: ContactItem[]): (TextRun | ExternalHyperlink)[] {
+  const out: (TextRun | ExternalHyperlink)[] = [];
+  items.forEach((item, i) => {
+    if (i > 0) out.push(new TextRun({ text: '  ·  ', size: 19, color: '888888' }));
+    if (item.url) {
+      out.push(new ExternalHyperlink({
+        link: item.url,
+        children: [new TextRun({ text: item.label, size: 19, color: ACCENT, underline: { color: ACCENT } })],
+      }));
+    } else {
+      out.push(new TextRun({ text: item.label, size: 19, color: '444444' }));
+    }
+  });
+  return out;
 }
 
 /** Strip <p>...</p>, normalize <br>, return paragraphs of plain text + bold runs from <strong>. */
@@ -204,7 +238,7 @@ export async function coverLetterToDocx(cl: GeneratedCoverLetter): Promise<Buffe
     children: [new TextRun({ text: cl.candidateName.toUpperCase(), bold: true, size: 34 })],
   }));
   children.push(new Paragraph({
-    children: [new TextRun({ text: contactPartsCL(cl).join(' · '), size: 19, color: '444444' })],
+    children: contactRunsFromItems(contactItemsCL(cl)),
     border: { bottom: { color: ACCENT, space: 1, style: BorderStyle.SINGLE, size: 8 } },
     spacing: { after: 240 },
   }));
@@ -230,7 +264,7 @@ export async function coverLetterToDocx(cl: GeneratedCoverLetter): Promise<Buffe
   // Sign-off
   children.push(new Paragraph({ text: 'Looking forward to talking.', spacing: { after: 200 } }));
   children.push(new Paragraph({ children: [new TextRun({ text: cl.candidateName, bold: true, size: 21 })] }));
-  children.push(new Paragraph({ children: [new TextRun({ text: contactPartsCL(cl).join(' · '), size: 19, color: '555555' })] }));
+  children.push(new Paragraph({ children: contactRunsFromItems(contactItemsCL(cl)) }));
 
   const doc = new Document({
     styles: { default: { document: { run: { font: 'Calibri', size: 21 } } } },

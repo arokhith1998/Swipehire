@@ -117,7 +117,7 @@ export function renderCvHtml(cv: GeneratedCV): string {
   .ski p { margin-bottom: 1pt; font-size: 8.5pt; line-height: 1.15; }
   .ski strong { font-weight: 700; }
   .comp { display: flex; flex-wrap: wrap; gap: 3pt; margin-bottom: 2pt; }
-  .tag { display: inline-block; padding: 1pt 5pt; border: 0.5pt solid #1a56db; color: #1a56db; border-radius: 3pt; font-size: 8.5pt; font-weight: 600; }
+  .tag { display: inline-block; padding: 0.5pt 5pt; background: #f3f4f6; color: #1a56db; border-radius: 3pt; font-size: 8.5pt; font-weight: 600; text-decoration: none; }
   @media print { .st { color: #000; border-bottom-color: #aaa; } a { color: #000; } }
 </style>
 </head>
