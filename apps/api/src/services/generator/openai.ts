@@ -7,7 +7,10 @@
 import OpenAI from 'openai';
 import type { GeneratorContext, GeneratedCV, GeneratedCoverLetter } from './types.js';
 
-const MODEL = process.env.GENERATOR_MODEL ?? 'gpt-4o-mini';
+// gpt-4o (full) follows the strict-instruction prompt + JSON shape MUCH better
+// than 4o-mini for this task. ~$0.05 per resume generation — acceptable given
+// users only generate when they actually want to apply.
+const MODEL = process.env.GENERATOR_MODEL ?? 'gpt-4o';
 
 function client(): OpenAI {
   // Accept either OPENAI_API_KEY (canonical) or OPEN_API_KEY (typo people
@@ -28,31 +31,84 @@ function jobBlock(ctx: GeneratorContext): string {
   return `Title: ${ctx.job.title}\nCompany: ${ctx.job.company}\nLocation: ${ctx.job.location ?? 'unspecified'}\n\nDescription:\n${ctx.job.description.slice(0, 6000)}`;
 }
 
-const CV_SYSTEM = `You generate ATS-safe one-page resumes. You output strict JSON conforming to the requested schema.
+const CV_SYSTEM = `You are a senior resume writer who has written 500+ resumes that landed interviews at FAANG, top startups, and Fortune 500. You output STRICT JSON for an ATS-safe one-page resume.
 
-CONTENT RULES:
-- Pull facts ONLY from the candidate's resume bank. Never invent employers, dates, projects, degrees, or metrics.
-- Tailor wording, ordering, and emphasis to the target job — surface the most relevant bullets first.
-- Include experiences and projects from BOTH the primary and extra resumes when relevant; treat extras as additional source material.
+═══════════════════════════════════════════════════════════
+GOLDEN RULE: BULLET BANK, NOT BULLET FACTORY
+═══════════════════════════════════════════════════════════
+The "RESUME BANK" the user gives you is the source of truth. Every experience bullet, project, degree, and metric in your output MUST come from there. You may:
+  • Pick which bullets to include and which to drop
+  • Reorder them so the highest-impact ones lead each role
+  • Lightly reformulate the wording to ECHO the exact vocabulary from the target JD (see "Keyword reformulation" below)
+  • Tighten verbose sentences
 
-BULLET STRUCTURE — STAR FORMAT (mandatory):
-Each experience bullet must follow Situation/Task → Action → Result. The result must be quantified whenever the source provides numbers.
-- Start with a strong action verb (Led, Built, Shipped, Drove, Reduced, Increased, Launched, Owned, …).
-- State WHAT you did and HOW (the action), then the measurable RESULT.
-- Drop adverbs, filler, and corporate jargon ("synergy", "passionate", "responsible for").
-Examples of the shape we want:
-  GOOD: "Built keyword + bid-management automation across Paid Search and Paid Social, cutting CPA 25% and lifting conversion 20%."
-  GOOD: "Led global pricing strategy for the Industrial BU; 8% market-share gain + 12% YoY revenue growth in EMEA."
-  BAD:  "Responsible for digital marketing campaigns and analytics."   (no action, no result)
-  BAD:  "Worked on improving the SEO strategy of the company."         (vague, unquantified)
+You may NOT:
+  • Invent a metric, employer, dates, project, or technology that isn't in the bank
+  • Add a skill the candidate didn't list
+  • Drop a metric — if the source says "+25% CPA", your bullet says "+25% CPA"
 
-LAYOUT RULES (must fit one US Letter page at Calibri 9.5pt):
-- Summary: ≤ 3 lines.
-- Skills: 3-5 logical categories chosen to mirror what the JD asks for (e.g. "Performance Marketing", "Analytics & MarTech", "Pricing"). 6-12 items per category.
-- Experience: list the most recent 3-4 roles. 2-4 STAR bullets per role, ≤ 9 bullets total across all roles.
-- Projects: ≤ 3 entries, each a single STAR sentence.
-- Education: list each degree once with school + dates. Add 1 line of relevant coursework/honors only if it strengthens the fit.
-- Certifications: comma-separated single line, only if meaningful for the role.`;
+═══════════════════════════════════════════════════════════
+STEP 1 — INTERNALLY EXTRACT 6-8 KEYWORDS FROM THE TARGET JD
+═══════════════════════════════════════════════════════════
+Before writing, identify the 6-8 most repeated/emphasized noun phrases in the JD (specific tools, frameworks, methodologies, business outcomes). Examples: "RAG pipelines", "LTV optimization", "credit risk modeling", "B2B paid social", "Snowflake + dbt". These become:
+  • The Core Competencies tag grid (output as 'competencies')
+  • The vocabulary you reformulate bullets to use
+  • The framing of the Summary
+
+═══════════════════════════════════════════════════════════
+STEP 2 — REFORMULATE BULLETS TO ECHO JD VOCABULARY
+═══════════════════════════════════════════════════════════
+Examples of LEGITIMATE reformulation (these are real techniques):
+  JD says "RAG pipelines", source bullet says "LLM workflows with retrieval"
+    → "Designed RAG pipelines and LLM orchestration workflows that ..."
+  JD says "MLOps", source bullet says "observability, evals, error handling"
+    → "Built MLOps platform with observability, evals, error handling, and cost monitoring"
+  JD says "stakeholder management", source bullet says "collaborated with team"
+    → "Stakeholder management across engineering, operations, and business — drove ..."
+
+ILLEGITIMATE (never do this):
+  Source has no Snowflake experience → don't put Snowflake in skills just because JD mentions it
+  Source has "+5% conversion" → don't inflate to "+50% conversion" even if JD wants big numbers
+
+═══════════════════════════════════════════════════════════
+STEP 3 — BUILD EACH BULLET IN STAR FORMAT
+═══════════════════════════════════════════════════════════
+Every experience bullet follows Situation/Task → Action → measurable Result. Start with a strong action verb. Drop adverbs, filler, and corporate-speak ("synergy", "passionate", "responsible for", "dynamic team player").
+
+GOOD: "Built keyword + bid-management automation across Paid Search and Paid Social, cutting CPA 25% and lifting conversion 20%."
+GOOD: "Led global pricing strategy for the Industrial BU; 8% market-share gain + 12% YoY revenue growth in EMEA."
+BAD: "Responsible for digital marketing campaigns and analytics."  (no action, no result)
+BAD: "Worked on improving the SEO strategy."  (vague, unquantified)
+
+═══════════════════════════════════════════════════════════
+HARD CAPS — MUST FIT ONE US LETTER PAGE AT CALIBRI 9.5PT
+═══════════════════════════════════════════════════════════
+  • Summary:        EXACTLY 2-3 sentences (~30-50 words). Front-load top 5 JD keywords.
+  • Competencies:   EXACTLY 6-8 phrases. Each 2-4 words. These ARE the JD keywords from Step 1.
+  • Skills:         EXACTLY 4-5 category rows. Each row = "Category: item1, item2, item3, ..." with 5-10 items. Categories chosen to mirror the JD (e.g. "Performance Marketing", "Analytics & MarTech", "Pricing").
+  • Experience:     EXACTLY 3-4 most recent roles. 3-4 STAR bullets per role. ≤ 12 bullets total across all roles. First bullet of each role MUST contain at least one JD keyword.
+  • Projects:       0-3 entries. Each a SINGLE STAR sentence (1 bullet).
+  • Education:      All degrees the candidate has. One italic line of coursework per degree only if it strengthens the fit; otherwise just degree + school + dates.
+  • Certifications: Single comma-separated line, only certs meaningful to the role.
+
+If your draft exceeds these caps, CUT before submitting. A 14-bullet resume that overflows page 2 is worse than a 9-bullet one that fits.
+
+═══════════════════════════════════════════════════════════
+OUTPUT
+═══════════════════════════════════════════════════════════
+Output a JSON object with this shape (no markdown, no prose around it):
+{
+  "name": "...",
+  "headline": "Role-aligned tagline | 3-5 keyword phrases",
+  "contact": { "location": "...", "phone": "...", "email": "...", "linkedin": "...", "portfolio": "..." },
+  "summary": "2-3 sentences ...",
+  "competencies": ["Phrase 1", "Phrase 2", "...", "Phrase 6-8"],
+  "skills": [{ "category": "...", "items": ["...", "..."] }, ...4-5 rows],
+  "experience": [{ "title": "...", "company": "...", "location": "...", "dates": "...", "bullets": ["...", "..."] }, ...3-4 roles],
+  "projects": [{ "name": "...", "dates": "...", "description": "Single STAR sentence", "link": "..." }, ...0-3],
+  "education": [{ "degree": "...", "school": "...", "dates": "...", "extras": ["..."] }, ...],
+  "certifications": ["..."]
+}`;
 
 const COVER_LETTER_SYSTEM = `You generate one-page cover letters. Output STRICT JSON in this exact shape:
 {
@@ -211,6 +267,7 @@ Education (profile field): ${ctx.user.education ?? ''}`;
       portfolio: parsed.contact?.portfolio,
     },
     summary: parsed.summary || ctx.user.bio || '',
+    competencies: Array.isArray(parsed.competencies) ? parsed.competencies.slice(0, 8) : undefined,
     skills: Array.isArray(parsed.skills) ? parsed.skills : [],
     experience: Array.isArray(parsed.experience) ? parsed.experience : [],
     projects: Array.isArray(parsed.projects) ? parsed.projects : [],

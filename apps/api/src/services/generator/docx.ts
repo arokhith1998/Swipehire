@@ -76,6 +76,15 @@ export async function cvToDocx(cv: GeneratedCV): Promise<Buffer> {
   children.push(sectionTitle('Summary'));
   children.push(new Paragraph({ text: cv.summary, spacing: { after: 60 } }));
 
+  // Core Competencies (placed between Summary and Skills per recruiter-scan order)
+  if (cv.competencies?.length) {
+    children.push(sectionTitle('Core Competencies'));
+    children.push(new Paragraph({
+      children: [new TextRun({ text: cv.competencies.join('  ·  '), size: 18, bold: true, color: ACCENT })],
+      spacing: { after: 60 },
+    }));
+  }
+
   // Skills
   if (cv.skills.length > 0) {
     children.push(sectionTitle('Skills'));

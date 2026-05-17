@@ -73,6 +73,10 @@ export function renderCvHtml(cv: GeneratedCV): string {
     ? `<div class="sec"><div class="st">Projects</div>${projectsBlock(cv)}</div>`
     : '';
 
+  const competencies = cv.competencies?.length
+    ? `<div class="sec"><div class="st">Core Competencies</div><div class="comp">${cv.competencies.map(c => `<span class="tag">${esc(c)}</span>`).join('')}</div></div>`
+    : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -112,6 +116,8 @@ export function renderCvHtml(cv: GeneratedCV): string {
   li { margin-bottom: 0.5pt; font-size: 9pt; line-height: 1.2; }
   .ski p { margin-bottom: 1pt; font-size: 8.5pt; line-height: 1.15; }
   .ski strong { font-weight: 700; }
+  .comp { display: flex; flex-wrap: wrap; gap: 3pt; margin-bottom: 2pt; }
+  .tag { display: inline-block; padding: 1pt 5pt; border: 0.5pt solid #1a56db; color: #1a56db; border-radius: 3pt; font-size: 8.5pt; font-weight: 600; }
   @media print { .st { color: #000; border-bottom-color: #aaa; } a { color: #000; } }
 </style>
 </head>
@@ -127,6 +133,8 @@ export function renderCvHtml(cv: GeneratedCV): string {
   <div class="st">Summary</div>
   <div class="sum">${esc(cv.summary)}</div>
 </div>
+
+${competencies}
 
 <div class="sec ski">
   <div class="st">Skills</div>

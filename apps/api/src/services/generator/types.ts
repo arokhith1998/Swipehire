@@ -8,6 +8,7 @@ export interface GeneratedCV {
   headline: string;                 // "Senior MLE | RAG, distributed systems"
   contact: ContactBlock;
   summary: string;                  // 2-3 line summary tailored to the role
+  competencies?: string[];          // 6-8 JD-keyword phrases for the Core Competencies tag grid
   skills: Array<{ category: string; items: string[] }>;
   experience: Array<{
     title: string;
