@@ -162,15 +162,28 @@ export function JobDetail({ job, onBack }: Props) {
                     Apply via SwipeHire
                   </Button>
 
-                  {/* Mode 2: Apply on company site (Tier 3 deep-link, current default) */}
-                  <Button
-                    onClick={handleApply}
-                    disabled={apply.isPending || !job.externalUrl}
-                    title={job.externalUrl ? "Open the company posting and record this as applied" : "No external link available"}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-1.5" />
-                    {apply.isPending ? "Recording..." : "Apply on company site"}
-                  </Button>
+                  {/* Mode 2: Apply on company site (Tier 3 deep-link, current default).
+                      Real anchor element (not window.open) so popup blockers can't
+                      swallow the navigation. Click also fires the apply mutation
+                      in the background to record it for the dashboard. */}
+                  {job.externalUrl ? (
+                    <a
+                      href={job.externalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => apply.mutate()}
+                      className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+                      title="Open the company posting in a new tab and record this as applied"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-1.5" />
+                      Apply on company site
+                    </a>
+                  ) : (
+                    <Button disabled title="No external link available">
+                      <ExternalLink className="w-4 h-4 mr-1.5" />
+                      Apply on company site
+                    </Button>
+                  )}
 
                   {/* Mode 3: Apply with extension (Tier 2 assisted, when extension is installed) */}
                   <Button
