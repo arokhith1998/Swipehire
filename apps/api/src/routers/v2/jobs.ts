@@ -157,6 +157,24 @@ const US_LOCATION_FILTER = sql`
   AND (location IS NULL OR location !~* '\\m(india|bengaluru|bangalore|mumbai|delhi|hyderabad|pune|chennai|noida|gurgaon|canada|toronto|vancouver|montreal|ottawa|united kingdom|\\mUK\\M|london|manchester|edinburgh|germany|berlin|munich|hamburg|france|paris|netherlands|amsterdam|spain|barcelona|madrid|italy|rome|milan|sweden|stockholm|switzerland|zurich|geneva|ireland|dublin|poland|warsaw|portugal|lisbon|israel|tel aviv|australia|sydney|melbourne|new zealand|auckland|singapore|hong kong|japan|tokyo|china|shanghai|south korea|seoul|brazil|sao paulo|mexico|mexico city|argentina|colombia|chile|south africa|uae|dubai|abu dhabi|saudi arabia|riyadh|egypt|cairo|nigeria|lagos|kenya|nairobi)\\M')
 `;
 
+/**
+ * In-memory cache of scored results keyed by user + filter signature, so
+ * clicking "page 2" doesn't re-score 400 jobs. 60-second TTL — short enough
+ * that fresh data after an ingest is visible quickly, long enough that
+ * pagination feels instant.
+ */
+const SCORE_CACHE_TTL_MS = 60_000;
+const SCORE_CACHE_MAX = 200;     // bounded so memory doesn't grow unbounded
+interface CachedScore { storedAt: number; total: number; sortedFlat: any[]; }
+const scoreCache = new Map<string, CachedScore>();
+function pruneCache() {
+  if (scoreCache.size <= SCORE_CACHE_MAX) return;
+  // Drop the oldest 25% by storedAt.
+  const drop = Math.ceil(scoreCache.size * 0.25);
+  const entries = [...scoreCache.entries()].sort((a, b) => a[1].storedAt - b[1].storedAt);
+  for (let i = 0; i < drop; i++) scoreCache.delete(entries[i][0]);
+}
+
 async function buildFeed(req: Request, res: Response) {
   const userId = authedUserId(req);
   if (!userId) return res.status(401).json({ error: 'not_authenticated' });
@@ -201,16 +219,37 @@ async function buildFeed(req: Request, res: Response) {
   let whereSql = wheres[0];
   for (let i = 1; i < wheres.length; i++) whereSql = sql`${whereSql} AND ${wheres[i]}`;
 
+  // For relevance: try the score cache first. Cache key includes everything
+  // that changes the candidate set (NOT page or limit — those just slice the
+  // already-sorted array).
+  const cacheKey = sort === 'relevance'
+    ? JSON.stringify({ userId, q: q ?? '', location: location ?? '', remote: remote ?? '', visa: visa ?? false, salaryMin: salaryMin ?? 0, country, excludeSeen })
+    : null;
+  if (cacheKey) {
+    const hit = scoreCache.get(cacheKey);
+    if (hit && Date.now() - hit.storedAt < SCORE_CACHE_TTL_MS) {
+      const slice = hit.sortedFlat.slice((page - 1) * limit, page * limit);
+      return res.json({
+        jobs: slice,
+        count: slice.length,
+        total: hit.total,
+        page,
+        pages: Math.max(1, Math.ceil(hit.total / limit)),
+        cached: true,
+      });
+    }
+  }
+
   // Total matching rows (for pagination "page X of Y"). Cheap because no joins.
   const totalRow = await db.execute(sql`SELECT COUNT(*)::int AS n FROM jobs WHERE ${whereSql}`);
   const total = (totalRow.rows[0] as any)?.n ?? 0;
 
-  // For relevance sort: load up to 1000 candidate rows ordered by recency,
-  // score them all in parallel, then paginate the scored results. This makes
-  // top-of-list relevance MUCH better than the old 1.3× over-sample, which
-  // had no way to surface a great older job that fell past the window.
-  // Bounded at 1000 so latency stays under ~3-5 sec on the worst page load.
-  const candidatePoolSize = sort === 'relevance' ? Math.min(total, 1000) : limit;
+  // For relevance sort: load up to 400 most-recent candidate rows, score them
+  // all in parallel, then paginate the scored results. 400 is the sweet spot
+  // — much better surface area than the old 1.3× window so a great older job
+  // still floats up, but keeps p95 first-page latency under ~6-8 sec.
+  // (A previous 1000-row pool produced great results but took ~28 sec.)
+  const candidatePoolSize = sort === 'relevance' ? Math.min(total, 400) : limit;
   const offsetForRecent = sort === 'recent' ? (page - 1) * limit : 0;
 
   const r = await db.execute(sql`
@@ -236,6 +275,10 @@ async function buildFeed(req: Request, res: Response) {
   if (sort === 'relevance') {
     // Sort the whole candidate pool by score, then take the requested page.
     const sorted = [...flat].sort((a, b) => (b.interviewProbability ?? 0) - (a.interviewProbability ?? 0));
+    if (cacheKey) {
+      scoreCache.set(cacheKey, { storedAt: Date.now(), total, sortedFlat: sorted });
+      pruneCache();
+    }
     page_slice = sorted.slice((page - 1) * limit, page * limit);
   } else {
     // Recent: SQL already paged by created_at; just hand back as-is.
