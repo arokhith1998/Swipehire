@@ -244,12 +244,13 @@ async function buildFeed(req: Request, res: Response) {
   const totalRow = await db.execute(sql`SELECT COUNT(*)::int AS n FROM jobs WHERE ${whereSql}`);
   const total = (totalRow.rows[0] as any)?.n ?? 0;
 
-  // For relevance sort: load up to 400 most-recent candidate rows, score them
-  // all in parallel, then paginate the scored results. 400 is the sweet spot
-  // — much better surface area than the old 1.3× window so a great older job
-  // still floats up, but keeps p95 first-page latency under ~6-8 sec.
-  // (A previous 1000-row pool produced great results but took ~28 sec.)
-  const candidatePoolSize = sort === 'relevance' ? Math.min(total, 400) : limit;
+  // For relevance sort: load up to 150 most-recent candidate rows, score them
+  // all in parallel, then paginate the scored results. 150 is the latency
+  // sweet spot — cold load lands in ~6-8 sec on Railway free tier vs. ~25 sec
+  // at 400 rows. Pagination beyond what 150 covers is served from the cache
+  // (so re-scoring isn't required) or by the user adding a more specific
+  // search query that narrows the candidate set.
+  const candidatePoolSize = sort === 'relevance' ? Math.min(total, 150) : limit;
   const offsetForRecent = sort === 'recent' ? (page - 1) * limit : 0;
 
   const r = await db.execute(sql`
