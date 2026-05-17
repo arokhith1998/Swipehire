@@ -6,6 +6,10 @@
  * pre-monorepo `@shared/schema` alias. They are excluded from typecheck
  * (see tsconfig.json) and will be migrated incrementally per
  * docs/04_scaffold_handoff.md.
+ *
+ * Build marker (used to force Railway rebuilds when only non-api files
+ * change but the registry/web side needs the api restarted to pick up
+ * a baked-in JSON file): 2026-05-17.
  */
 import 'dotenv/config';
 
