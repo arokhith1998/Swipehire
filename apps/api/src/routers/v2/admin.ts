@@ -13,8 +13,14 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 import { db } from '@swipehire/db';
-import { ingestAllOrgs, GREENHOUSE_ORGS } from '../../services/greenhouseIngest.js';
+import { ingestAllOrgs, GREENHOUSE_ORGS, ingestOrg as ingestGreenhouseOrg } from '../../services/greenhouseIngest.js';
+import { ingestLeverOrg } from '../../services/leverIngest.js';
+import { ingestAshbyOrg } from '../../services/ashbyIngest.js';
+import { ingestWorkdayOrg } from '../../services/workdayIngest.js';
 import { ingestDolLca } from '../../visa/ingest/dolLca.js';
+import { readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const adminRouter: Router = Router();
 
@@ -34,6 +40,60 @@ function requireAdmin(req: Request, res: Response, next: NextFunction): void {
 
 const ingestSchema = z.object({
   orgs: z.array(z.string().min(1).max(50)).max(100).optional(),
+});
+
+/**
+ * POST /api/admin/ingest/all-ats — run the unified ATS ingest (all ATSes) optionally
+ * filtered by --slugs. Body: { slugs?: string[] }. Pulls from registry baked into deploy.
+ */
+const allAtsSchema = z.object({
+  slugs: z.array(z.string().min(1).max(80)).max(200).optional(),
+});
+
+adminRouter.post('/api/admin/ingest/all-ats', requireAdmin, async (req, res) => {
+  const parsed = allAtsSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+    return;
+  }
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const registryPath = path.resolve(here, '../../../../../packages/db/src/seeds/ats-registry.json');
+  if (!existsSync(registryPath)) {
+    res.status(500).json({ error: 'registry_missing', path: registryPath });
+    return;
+  }
+  const registry = JSON.parse(readFileSync(registryPath, 'utf8')) as Record<string, any>;
+  let entries = Object.values(registry).filter((e: any) => e && (e.slug || e.tenant));
+  if (parsed.data.slugs?.length) {
+    const wanted = new Set(parsed.data.slugs);
+    entries = entries.filter((e: any) => wanted.has(e.slug ?? e.tenant ?? ''));
+  }
+
+  const t0 = Date.now();
+  const totals = { fetched: 0, inserted: 0, updated: 0, skipped: 0, errors: 0 };
+  const perOrg: any[] = [];
+  for (const entry of entries as any[]) {
+    const id = entry.slug ?? entry.tenant;
+    const tEntry = Date.now();
+    let r;
+    try {
+      r = entry.ats === 'greenhouse' && entry.slug ? await ingestGreenhouseOrg(entry.slug)
+        : entry.ats === 'lever' && entry.slug      ? await ingestLeverOrg(entry.slug, entry.company)
+        : entry.ats === 'ashby' && entry.slug      ? await ingestAshbyOrg(entry.slug, entry.company)
+        : entry.ats === 'workday' && entry.host && entry.tenant && entry.site
+            ? await ingestWorkdayOrg({ host: entry.host, tenant: entry.tenant, site: entry.site }, entry.company)
+        : null;
+    } catch (err: any) {
+      perOrg.push({ ats: entry.ats, id, error: err.message?.slice(0, 200) });
+      totals.errors++;
+      continue;
+    }
+    if (!r) continue;
+    perOrg.push({ ats: entry.ats, id, ms: Date.now() - tEntry, ...r });
+    totals.fetched += r.fetched; totals.inserted += r.inserted;
+    totals.updated += r.updated; totals.skipped += r.skipped; totals.errors += r.errors;
+  }
+  res.json({ ok: true, ms: Date.now() - t0, count: entries.length, totals, perOrg });
 });
 
 adminRouter.post('/api/admin/ingest/greenhouse', requireAdmin, async (req, res) => {

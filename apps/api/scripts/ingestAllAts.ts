@@ -44,6 +44,13 @@ async function main() {
     const ats = atsFilter.slice(6) as RegistryEntry['ats'];
     entries = entries.filter(e => e.ats === ats);
   }
+  // --slugs=foo,bar,baz — only ingest these (matches greenhouse/lever/ashby
+  // slug or, for workday, the tenant).
+  const slugsArg = process.argv.find(a => a.startsWith('--slugs='));
+  if (slugsArg) {
+    const wanted = new Set(slugsArg.slice(8).split(',').map(s => s.trim()).filter(Boolean));
+    entries = entries.filter(e => wanted.has(e.slug ?? e.tenant ?? ''));
+  }
   const limitArg = process.argv.find(a => a.startsWith('--limit='));
   if (limitArg) entries = entries.slice(0, parseInt(limitArg.slice(8), 10));
 
