@@ -125,7 +125,12 @@ export default function Jobs() {
     // Keep the previous result visible while a new filter is fetching — much
     // less jarring than wiping the list to the loading state on every keystroke.
     placeholderData: (prev) => prev,
-    staleTime: 30_000,
+    // Always refetch on mount + filter-change. The global queryClient default
+    // is staleTime: Infinity, which had been making the feed stick to stale
+    // "0 count" responses from before backfills landed. With placeholderData
+    // above, the user still sees the old list during the refetch — no flash.
+    staleTime: 0,
+    refetchOnMount: "always",
   });
   const jobs = feedData?.jobs ?? [];
   const chips = activeChips(filters);
