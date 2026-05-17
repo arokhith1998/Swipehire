@@ -36,11 +36,36 @@ export function normalizeCompanyName(name: string): string {
 }
 
 /**
+ * Process-wide cache for company → FEIN matches. 30-minute TTL — DOL ingest is
+ * nightly and company names don't change. Hot path in feed scoring (~150 jobs
+ * across ~30 distinct companies fires 30 misses + 120 hits).
+ */
+const MATCH_CACHE_TTL_MS = 30 * 60_000;
+const MATCH_CACHE_MAX = 5000;
+const matchCache = new Map<string, { storedAt: number; fein: string | null }>();
+function pruneMatchCache() {
+  if (matchCache.size <= MATCH_CACHE_MAX) return;
+  const drop = Math.ceil(matchCache.size * 0.25);
+  const oldest = [...matchCache.entries()].sort((a, b) => a[1].storedAt - b[1].storedAt);
+  for (let i = 0; i < drop; i++) matchCache.delete(oldest[i][0]);
+}
+
+/**
  * Match a free-text company name to a FEIN.
- * Returns null if no high-confidence match found.
+ * Returns null if no high-confidence match found. Process-wide cached for 30 min.
  */
 export async function matchEmployer(companyName: string): Promise<string | null> {
   if (!companyName) return null;
+  const cacheKey = companyName.toLowerCase().trim();
+  const hit = matchCache.get(cacheKey);
+  if (hit && Date.now() - hit.storedAt < MATCH_CACHE_TTL_MS) return hit.fein;
+  const fein = await matchEmployerUncached(companyName);
+  matchCache.set(cacheKey, { storedAt: Date.now(), fein });
+  pruneMatchCache();
+  return fein;
+}
+
+async function matchEmployerUncached(companyName: string): Promise<string | null> {
   const norm = normalizeCompanyName(companyName);
 
   // Override check

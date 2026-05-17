@@ -24,9 +24,31 @@ interface EmployerStatsRow {
 }
 
 /**
- * Load per-(FEIN, SOC) stats from the rollup table.
+ * Process-wide cache for employer_visa_stats lookups, keyed by (fein, socCode).
+ * 5-minute TTL — stats only change when the DOL ingest reruns nightly. Without
+ * this, scoring 150 jobs that share ~30 employers fired 600+ identical DB
+ * queries and dominated feed latency (~25 sec cold load).
+ */
+const STATS_CACHE_TTL_MS = 5 * 60_000;
+const STATS_CACHE_MAX = 2000;
+const statsCache = new Map<string, { storedAt: number; row: EmployerStatsRow | null }>();
+function statsCacheKey(fein: string, socCode: string | null): string {
+  return `${fein}|${socCode ?? '_'}`;
+}
+function pruneStatsCache() {
+  if (statsCache.size <= STATS_CACHE_MAX) return;
+  const drop = Math.ceil(statsCache.size * 0.25);
+  const oldest = [...statsCache.entries()].sort((a, b) => a[1].storedAt - b[1].storedAt);
+  for (let i = 0; i < drop; i++) statsCache.delete(oldest[i][0]);
+}
+
+/**
+ * Load per-(FEIN, SOC) stats from the rollup table. Cached process-wide.
  */
 async function getEmployerStats(fein: string, socCode: string | null): Promise<EmployerStatsRow | null> {
+  const key = statsCacheKey(fein, socCode);
+  const hit = statsCache.get(key);
+  if (hit && Date.now() - hit.storedAt < STATS_CACHE_TTL_MS) return hit.row;
   try {
     const r = await db.execute(sql`
       SELECT * FROM visa.employer_visa_stats
@@ -34,7 +56,10 @@ async function getEmployerStats(fein: string, socCode: string | null): Promise<E
         AND (soc_code = ${socCode} OR (${socCode}::text IS NULL AND soc_code IS NULL))
       LIMIT 1
     `);
-    return (r.rows?.[0] as unknown as EmployerStatsRow | undefined) ?? null;
+    const row = (r.rows?.[0] as unknown as EmployerStatsRow | undefined) ?? null;
+    statsCache.set(key, { storedAt: Date.now(), row });
+    pruneStatsCache();
+    return row;
   } catch {
     return null;
   }
