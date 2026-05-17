@@ -123,9 +123,10 @@ function flattenForUi(job: ScoringJob, match: MatchResult, raw: any) {
 }
 
 const feedQuery = z.object({
-  // 50 default — balance between "enough to scroll" and "page loads fast".
-  // Caller can request up to 200.
-  limit: z.coerce.number().int().min(1).max(200).default(50),
+  // 50 default page size; caller can pick 25/50/100/200/500 via the UI selector.
+  // 500 is allowed but will be slow — scoring takes ~10-30 sec.
+  limit: z.coerce.number().int().min(1).max(500).default(50),
+  page: z.coerce.number().int().min(1).max(200).default(1),
   excludeSeen: z.coerce.boolean().default(true),
   sort: z.enum(['relevance', 'recent']).default('relevance'),
   q: z.string().trim().max(120).optional(),               // free-text across title/company/desc
@@ -162,7 +163,7 @@ async function buildFeed(req: Request, res: Response) {
 
   const parsed = feedQuery.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const { limit, excludeSeen, sort, q, location, remote, visa, salaryMin, country } = parsed.data;
+  const { limit, page, excludeSeen, sort, q, location, remote, visa, salaryMin, country } = parsed.data;
 
   const user = await loadScoringUser(userId);
   if (!user) return res.status(401).json({ error: 'user_not_found' });
@@ -200,12 +201,17 @@ async function buildFeed(req: Request, res: Response) {
   let whereSql = wheres[0];
   for (let i = 1; i < wheres.length; i++) whereSql = sql`${whereSql} AND ${wheres[i]}`;
 
-  // Recent uses SQL order; relevance pulls 1.3× the limit (capped at 150)
-  // so the scorer has headroom to reshuffle without blowing latency.
-  const overSample = sort === 'relevance' ? Math.min(Math.ceil(limit * 1.3), 150) : limit;
-  const orderSql = sort === 'recent'
-    ? sql`ORDER BY created_at DESC NULLS LAST`
-    : sql`ORDER BY created_at DESC NULLS LAST`; // pre-sort by recency before scoring
+  // Total matching rows (for pagination "page X of Y"). Cheap because no joins.
+  const totalRow = await db.execute(sql`SELECT COUNT(*)::int AS n FROM jobs WHERE ${whereSql}`);
+  const total = (totalRow.rows[0] as any)?.n ?? 0;
+
+  // For relevance sort: load up to 1000 candidate rows ordered by recency,
+  // score them all in parallel, then paginate the scored results. This makes
+  // top-of-list relevance MUCH better than the old 1.3× over-sample, which
+  // had no way to surface a great older job that fell past the window.
+  // Bounded at 1000 so latency stays under ~3-5 sec on the worst page load.
+  const candidatePoolSize = sort === 'relevance' ? Math.min(total, 1000) : limit;
+  const offsetForRecent = sort === 'recent' ? (page - 1) * limit : 0;
 
   const r = await db.execute(sql`
     SELECT id, title, company, location, description, requirements,
@@ -213,23 +219,36 @@ async function buildFeed(req: Request, res: Response) {
            h1b_approval_rate, recent_sponsorship_count, external_url, created_at
     FROM jobs
     WHERE ${whereSql}
-    ${orderSql}
-    LIMIT ${overSample}
+    ORDER BY created_at DESC NULLS LAST
+    LIMIT ${candidatePoolSize} OFFSET ${offsetForRecent}
   `);
 
   const rawRows = r.rows ?? [];
   const jobs = rawRows.map(rowToScoringJob);
   if (jobs.length === 0) {
-    return res.json({ jobs: [], count: 0, hint: 'No jobs match those filters — try widening them' });
+    return res.json({ jobs: [], count: 0, total, page, pages: 0, hint: 'No jobs match those filters — try widening them' });
   }
 
   const matches = await scoreFeedForUser(user, jobs, { skipAuthenticity: true });
-
   const flat = jobs.map((j, i) => flattenForUi(j, matches[i], rawRows[i]));
-  const ordered = sort === 'relevance'
-    ? flat.sort((a, b) => (b.interviewProbability ?? 0) - (a.interviewProbability ?? 0))
-    : flat;     // SQL already ordered by created_at DESC
-  res.json({ jobs: ordered.slice(0, limit), count: Math.min(ordered.length, limit) });
+
+  let page_slice: typeof flat;
+  if (sort === 'relevance') {
+    // Sort the whole candidate pool by score, then take the requested page.
+    const sorted = [...flat].sort((a, b) => (b.interviewProbability ?? 0) - (a.interviewProbability ?? 0));
+    page_slice = sorted.slice((page - 1) * limit, page * limit);
+  } else {
+    // Recent: SQL already paged by created_at; just hand back as-is.
+    page_slice = flat;
+  }
+
+  res.json({
+    jobs: page_slice,
+    count: page_slice.length,
+    total,
+    page,
+    pages: Math.max(1, Math.ceil(total / limit)),
+  });
 }
 
 jobsRouter.get('/api/jobs', buildFeed);

@@ -35,6 +35,8 @@ interface FilterState {
   visaOnly: boolean;
   salaryMin: number | null;
   country: "us" | "any";
+  pageSize: number;
+  page: number;
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -45,7 +47,11 @@ const DEFAULT_FILTERS: FilterState = {
   visaOnly: false,
   salaryMin: null,
   country: "us",
+  pageSize: 50,
+  page: 1,
 };
+
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 200, 500];
 
 function useDebounced<T>(value: T, ms = 300): T {
   const [v, setV] = useState(value);
@@ -106,11 +112,20 @@ export default function Jobs() {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const debounced = useDebounced(filters, 350);
 
+  // Reset to page 1 whenever any filter (other than `page` itself) changes —
+  // so toggling a filter doesn't leave you stranded on page 7 of a smaller result set.
+  useEffect(() => {
+    setFilters(prev => (prev.page === 1 ? prev : { ...prev, page: 1 }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.q, filters.sort, filters.location, filters.remote, filters.visaOnly, filters.salaryMin, filters.country, filters.pageSize]);
+
   const queryString = useMemo(() => {
     const sp = new URLSearchParams();
     if (debounced.q.trim()) sp.set("q", debounced.q.trim());
     sp.set("sort", debounced.sort);
     sp.set("country", debounced.country);
+    sp.set("limit", String(debounced.pageSize));
+    sp.set("page", String(debounced.page));
     if (debounced.location.trim()) sp.set("location", debounced.location.trim());
     if (debounced.remote !== "any") sp.set("remote", debounced.remote);
     if (debounced.visaOnly) sp.set("visa", "true");
@@ -119,7 +134,7 @@ export default function Jobs() {
   }, [debounced]);
 
   const feedKey = `/api/jobs/feed?${queryString}`;
-  const { data: feedData, isLoading, isFetching } = useQuery<{ jobs: any[]; count: number }>({
+  const { data: feedData, isLoading, isFetching } = useQuery<{ jobs: any[]; count: number; total?: number; page?: number; pages?: number }>({
     queryKey: [feedKey],
     queryFn: getQueryFn({ on401: "throw" }),
     // Keep the previous result visible while a new filter is fetching — much
@@ -247,7 +262,9 @@ export default function Jobs() {
                 {isFetching && !isLoading && (
                   <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-label="Updating" />
                 )}
-                {isLoading ? "" : `${jobs.length} scored`}
+                {isLoading ? "" : feedData?.total
+                  ? `${(filters.page - 1) * filters.pageSize + 1}–${(filters.page - 1) * filters.pageSize + jobs.length} of ${feedData.total.toLocaleString()}`
+                  : `${jobs.length} scored`}
               </span>
             </header>
 
@@ -382,6 +399,17 @@ export default function Jobs() {
                 </Card>
               ))}
             </div>
+
+            {!isLoading && (feedData?.pages ?? 0) > 1 && (
+              <PaginationBar
+                pageSize={filters.pageSize}
+                page={filters.page}
+                pages={feedData?.pages ?? 1}
+                total={feedData?.total ?? 0}
+                onPageSizeChange={(s) => setFilters({ ...filters, pageSize: s, page: 1 })}
+                onPageChange={(p) => setFilters({ ...filters, page: p })}
+              />
+            )}
           </main>
         </div>
       </div>
@@ -497,12 +525,58 @@ function SearchFilterBar({
             <Button variant="ghost" onClick={() => { setDraft(DEFAULT_FILTERS); }}>
               Reset
             </Button>
-            <Button onClick={() => { onChange(draft); setOpen(false); }}>
+            <Button onClick={() => { onChange({ ...draft, page: 1 }); setOpen(false); }}>
               Apply
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function PaginationBar({
+  pageSize, page, pages, total, onPageSizeChange, onPageChange,
+}: {
+  pageSize: number;
+  page: number;
+  pages: number;
+  total: number;
+  onPageSizeChange: (s: number) => void;
+  onPageChange: (p: number) => void;
+}) {
+  const prevDisabled = page <= 1;
+  const nextDisabled = page >= pages;
+
+  return (
+    <div className="mt-6 flex items-center justify-between gap-3 text-sm text-gray-700">
+      <div className="flex items-center gap-2">
+        <span className="text-gray-500">Per page:</span>
+        <Select value={String(pageSize)} onValueChange={(v) => onPageSizeChange(parseInt(v, 10))}>
+          <SelectTrigger className="w-20 h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAGE_SIZE_OPTIONS.map(n => (
+              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {pageSize >= 200 && <span className="text-xs text-amber-600">slow at this size</span>}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" disabled={prevDisabled} onClick={() => onPageChange(page - 1)}>
+          ← Prev
+        </Button>
+        <span className="text-gray-600">
+          Page <span className="font-semibold text-gray-900">{page}</span> of {pages.toLocaleString()}
+          <span className="text-gray-400"> · {total.toLocaleString()} total</span>
+        </span>
+        <Button variant="outline" size="sm" disabled={nextDisabled} onClick={() => onPageChange(page + 1)}>
+          Next →
+        </Button>
+      </div>
     </div>
   );
 }
