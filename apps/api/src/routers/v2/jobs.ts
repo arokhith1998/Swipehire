@@ -123,8 +123,9 @@ function flattenForUi(job: ScoringJob, match: MatchResult, raw: any) {
 }
 
 const feedQuery = z.object({
-  // 100 default so users don't run out of cards after a quick scroll, max 200.
-  limit: z.coerce.number().int().min(1).max(200).default(100),
+  // 50 default — balance between "enough to scroll" and "page loads fast".
+  // Caller can request up to 200.
+  limit: z.coerce.number().int().min(1).max(200).default(50),
   excludeSeen: z.coerce.boolean().default(true),
   sort: z.enum(['relevance', 'recent']).default('relevance'),
   q: z.string().trim().max(120).optional(),               // free-text across title/company/desc

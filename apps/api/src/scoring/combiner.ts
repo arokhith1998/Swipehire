@@ -54,6 +54,20 @@ export function combine(
   for (const key of Object.keys(weights) as SubscoreKey[]) {
     raw += weights[key] * subscores[key].value;
   }
+
+  // Title-match floor boost: when the job's title aligns strongly with the
+  // user's target role, the candidate WILL meaningfully consider it even if
+  // location/salary/etc. are imperfect. Without this, a literal "Marketing
+  // Analyst" job for a user targeting "Marketing Analyst" caps around 40%
+  // because the long tail of weaker subscores drags the weighted average
+  // down. Boost is bounded so it never pushes a poor match into "Strong fit".
+  const title = subscores.titleAlignment?.value ?? 0;
+  if (title >= 0.85) {
+    raw = Math.min(1, raw + 0.20);
+  } else if (title >= 0.65) {
+    raw = Math.min(1, raw + 0.10);
+  }
+
   return { raw: Math.max(0, Math.min(1, raw)), weights };
 }
 

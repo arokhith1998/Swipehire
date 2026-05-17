@@ -20,6 +20,7 @@ import { User, Camera, MapPin, Briefcase, GraduationCap, Plus, X } from "lucide-
 import { LocationAutocomplete } from "@/components/LocationAutocomplete";
 import { SwipeHireLogo } from "@/components/SwipeHireLogo";
 import { TopNavigation } from "@/components/TopNavigation";
+import { BottomNavigation } from "@/components/BottomNavigation";
 import { MyResumes } from "@/components/MyResumes";
 
 const profileSchema = z.object({
@@ -213,7 +214,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 pb-20 md:pb-0">
       <TopNavigation />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="text-center mb-8 md:hidden">
@@ -538,6 +539,7 @@ export default function Profile() {
           <MyResumes />
         </div>
       </div>
+      <BottomNavigation currentPath="/profile" />
     </div>
   );
 }
