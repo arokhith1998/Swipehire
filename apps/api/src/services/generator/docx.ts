@@ -117,12 +117,23 @@ export async function cvToDocx(cv: GeneratedCV): Promise<Buffer> {
     }
   }
 
-  // Experience
+  // Experience — title bold on its own line, then italic sub-meta with
+  // company · location · dates so dates aren't floating awkwardly at the
+  // right edge.
   if (cv.experience.length > 0) {
     children.push(sectionTitle('Experience'));
     for (const e of cv.experience) {
-      const titleLeft = `${e.title}, ${e.company}${e.location ? ` · ${e.location}` : ''}`;
-      children.push(rightAlignedRow(titleLeft, e.dates));
+      const subParts: string[] = [e.company];
+      if (e.location) subParts.push(e.location);
+      if (e.dates) subParts.push(e.dates);
+      children.push(new Paragraph({
+        children: [new TextRun({ text: e.title, bold: true, size: 19 })],
+        spacing: { after: 0 },
+      }));
+      children.push(new Paragraph({
+        children: [new TextRun({ text: subParts.join(' · '), italics: true, size: 17, color: '555555' })],
+        spacing: { after: 30 },
+      }));
       for (const b of e.bullets) children.push(bullet(b));
     }
   }
@@ -131,17 +142,34 @@ export async function cvToDocx(cv: GeneratedCV): Promise<Buffer> {
   if (cv.projects?.length > 0) {
     children.push(sectionTitle('Projects'));
     for (const p of cv.projects) {
-      children.push(rightAlignedRow(p.name, p.dates ?? ''));
+      children.push(new Paragraph({
+        children: [new TextRun({ text: p.name, bold: true, size: 19 })],
+        spacing: { after: 0 },
+      }));
+      const sub: string[] = [];
+      if (p.link) sub.push(p.link.replace(/^https?:\/\//, ''));
+      if (p.dates) sub.push(p.dates);
+      if (sub.length) {
+        children.push(new Paragraph({
+          children: [new TextRun({ text: sub.join(' · '), italics: true, size: 17, color: '555555' })],
+          spacing: { after: 30 },
+        }));
+      }
       children.push(bullet(p.description));
     }
   }
 
-  // Education
+  // Education — same pattern as experience.
   if (cv.education.length > 0) {
     children.push(sectionTitle('Education'));
     for (const ed of cv.education) {
-      children.push(rightAlignedRow(ed.degree, ed.dates));
-      children.push(new Paragraph({ children: [new TextRun({ text: ed.school, italics: true, size: 17, color: '555555' })], spacing: { after: 0 } }));
+      children.push(new Paragraph({
+        children: [new TextRun({ text: ed.degree, bold: true, size: 19 })],
+        spacing: { after: 0 },
+      }));
+      const eduSub: string[] = [ed.school];
+      if (ed.dates) eduSub.push(ed.dates);
+      children.push(new Paragraph({ children: [new TextRun({ text: eduSub.join(' · '), italics: true, size: 17, color: '555555' })], spacing: { after: 0 } }));
       if (ed.extras?.length) {
         for (const x of ed.extras) {
           children.push(new Paragraph({ children: [new TextRun({ text: x, italics: true, size: 17, color: '555555' })], spacing: { after: 0 } }));

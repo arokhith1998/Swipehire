@@ -36,33 +36,50 @@ function skillsBlock(cv: GeneratedCV): string {
 }
 
 function experienceBlock(cv: GeneratedCV): string {
-  return cv.experience.map(e => `
+  return cv.experience.map(e => {
+    const subParts = [esc(e.company)];
+    if (e.location) subParts.push(esc(e.location));
+    if (e.dates) subParts.push(esc(e.dates));
+    return `
     <div class="ent">
-      <div class="row"><span class="ttl">${esc(e.title)}, ${esc(e.company)}${e.location ? ` <em>· ${esc(e.location)}</em>` : ''}</span><span class="dt">${esc(e.dates)}</span></div>
+      <div class="ttl">${esc(e.title)}</div>
+      <div class="sub-meta">${subParts.join(' · ')}</div>
       <ul>${e.bullets.map(b => `<li>${esc(b)}</li>`).join('')}</ul>
     </div>
-  `).join('\n');
+  `;
+  }).join('\n');
 }
 
 function projectsBlock(cv: GeneratedCV): string {
   if (!cv.projects?.length) return '';
-  return cv.projects.map(p => `
+  return cv.projects.map(p => {
+    const subParts: string[] = [];
+    if (p.link) subParts.push(`<a href="${esc(p.link)}">${esc(p.link.replace(/^https?:\/\//,''))}</a>`);
+    if (p.dates) subParts.push(esc(p.dates));
+    const subLine = subParts.length ? `<div class="sub-meta">${subParts.join(' · ')}</div>` : '';
+    return `
     <div class="ent">
-      <div class="row"><span class="ttl">${esc(p.name)}${p.link ? ` <a href="${esc(p.link)}" style="font-weight:400;font-size:8.5pt;">[link]</a>` : ''}</span>${p.dates ? `<span class="dt">${esc(p.dates)}</span>` : ''}</div>
+      <div class="ttl">${esc(p.name)}</div>
+      ${subLine}
       <ul><li>${esc(p.description)}</li></ul>
     </div>
-  `).join('\n');
+  `;
+  }).join('\n');
 }
 
 function educationBlock(cv: GeneratedCV): string {
-  return cv.education.map(ed => `
+  return cv.education.map(ed => {
+    const subParts = [esc(ed.school)];
+    if (ed.dates) subParts.push(esc(ed.dates));
+    return `
     <div class="ent">
-      <div class="row"><span class="ttl">${esc(ed.degree)}</span><span class="dt">${esc(ed.dates)}</span></div>
-      <div class="sub">${esc(ed.school)}</div>
+      <div class="ttl">${esc(ed.degree)}</div>
+      <div class="sub-meta">${subParts.join(' · ')}</div>
       ${ed.extras?.length ? ed.extras.map(x => `<div class="sub"><em>${esc(x)}</em></div>`).join('') : ''}
-    </div>
-  `).join('\n');
+    </div>`;
+  }).join('\n').replace(/\s+$/g, '');
 }
+
 
 export function renderCvHtml(cv: GeneratedCV): string {
   const certs = cv.certifications?.length
@@ -106,9 +123,11 @@ export function renderCvHtml(cv: GeneratedCV): string {
   .sep { margin: 0 3pt; color: #bbb; }
   .sec { margin-bottom: 4pt; }
   .st { font-size: 9pt; font-weight: 700; color: #1a56db; text-transform: uppercase; letter-spacing: 0.6pt; border-bottom: 0.5pt solid #ccc; padding-bottom: 1pt; margin-bottom: 2.5pt; }
-  .ent { margin-bottom: 3pt; }
+  .ent { margin-bottom: 4pt; }
   .row { display: flex; justify-content: space-between; align-items: baseline; }
-  .ttl { font-weight: 700; font-size: 9.5pt; }
+  .ttl { font-weight: 700; font-size: 9.5pt; line-height: 1.2; }
+  .sub-meta { font-size: 8.5pt; color: #555; font-style: italic; margin-bottom: 1pt; line-height: 1.15; }
+  .sub-meta a { color: #1a56db; text-decoration: none; }
   .dt  { font-size: 8.5pt; color: #555; white-space: nowrap; }
   .sub { font-style: italic; font-size: 8.5pt; color: #555; }
   .sum { font-size: 9pt; line-height: 1.2; margin-bottom: 3pt; }
