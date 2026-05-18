@@ -156,6 +156,38 @@ export const skillTaxonomy = mlSchema.table(
 //   CREATE INDEX idx_skill_taxonomy_emb ON ml.skill_taxonomy
 //   USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
 
+/**
+ * RAG knowledge corpus. Each row is one retrievable chunk of text with an
+ * OpenAI text-embedding-3-small embedding (1536 dims). Source ranges from
+ * employer-visa-stats summaries through hand-written immigration explainers.
+ *
+ * Retrieval: top-K cosine similarity against the question's embedding,
+ * filtered by `kind` when the caller knows which knowledge type they want.
+ */
+export const knowledgeChunks = mlSchema.table(
+  'knowledge_chunks',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    kind: text('kind').notNull(),                          // 'company_visa' | 'immigration_rule' | 'role_norms' | 'salary_band'
+    sourceId: text('source_id'),                           // FEIN, SOC code, doc slug, etc.
+    title: text('title'),
+    body: text('body').notNull(),
+    metadata: jsonb('metadata'),                           // freeform per kind (e.g. { company, soc, totalLcas24mo, ... })
+    embedding: vector('embedding', { dimensions: 1536 }),  // OpenAI text-embedding-3-small
+    embeddingModel: text('embedding_model').default('text-embedding-3-small'),
+    contentHash: text('content_hash'),                     // sha256 of body — re-embed only when changed
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  t => ({
+    byKind: index('knowledge_chunks_kind_idx').on(t.kind),
+    bySource: index('knowledge_chunks_source_idx').on(t.kind, t.sourceId),
+  })
+);
+// HNSW cosine index (raw SQL — Drizzle can't express HNSW yet):
+//   CREATE INDEX knowledge_chunks_emb_idx ON ml.knowledge_chunks
+//   USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
+
 /** Role family taxonomy — used by titleAlignment scorer. */
 export const roleFamilies = mlSchema.table(
   'role_families',

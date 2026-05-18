@@ -18,6 +18,7 @@ import { ingestLeverOrg } from '../../services/leverIngest.js';
 import { ingestAshbyOrg } from '../../services/ashbyIngest.js';
 import { ingestWorkdayOrg } from '../../services/workdayIngest.js';
 import { ingestDolLca } from '../../visa/ingest/dolLca.js';
+import { reseedKnowledgeBase } from '../../services/rag/seed.js';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -171,4 +172,37 @@ adminRouter.get('/api/admin/stats', requireAdmin, async (_req, res) => {
     interactionsByAction,
     applicationsByStatus,
   });
+});
+
+/**
+ * POST /api/admin/rag/reseed — embed the RAG corpus.
+ * Body: { kinds?: string[], limit?: number }
+ *   kinds:  only seed these (default: all). Use to avoid re-embedding the
+ *           static immigration_rule corpus when only company_visa needs a refresh.
+ *   limit:  cap company_visa rows for testing (skip for prod runs).
+ *
+ * Cost: ~$0.02 per 1M tokens at OpenAI text-embedding-3-small. A typical
+ * company_visa chunk is ~120 tokens; 5k chunks = ~$0.012 to embed.
+ */
+const reseedSchema = z.object({
+  kinds: z.array(z.enum(['company_visa', 'immigration_rule', 'role_norms', 'salary_band'])).optional(),
+  limit: z.number().int().min(1).max(50000).optional(),
+});
+
+adminRouter.post('/api/admin/rag/reseed', requireAdmin, async (req, res) => {
+  const parsed = reseedSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+    return;
+  }
+  try {
+    const result = await reseedKnowledgeBase(parsed.data);
+    res.json({ ok: true, ...result });
+  } catch (err: any) {
+    if (err.message === 'OPENAI_API_KEY not configured') {
+      res.status(503).json({ error: 'openai_not_configured' });
+      return;
+    }
+    res.status(500).json({ ok: false, error: err.message?.slice(0, 200) });
+  }
 });

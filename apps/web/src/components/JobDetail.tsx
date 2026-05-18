@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiRequest, getQueryFn } from "@/lib/api";
 import { GenerateDocsButton } from "@/components/GenerateDocsButton";
+import { AskWidget } from "@/components/AskWidget";
 import {
   MapPin, Building, Clock, Heart, Bookmark, ExternalLink,
   CheckCircle, AlertTriangle, Globe, DollarSign, ArrowLeft, Newspaper,
@@ -301,6 +302,15 @@ export function JobDetail({ job, onBack }: Props) {
           )}
 
           {job.visaIntel && <VisaIntelCard intel={job.visaIntel} role={job.title} company={job.company} />}
+
+          <AskWidget
+            contextPrefix={`About ${job.company} (role: ${job.title}). `}
+            suggestions={[
+              `How many H-1Bs has ${job.company} sponsored?`,
+              `Is this role likely to get visa sponsorship?`,
+              `What's the typical wage for this role at ${job.company}?`,
+            ]}
+          />
 
           <CompanyHiringStatsCard company={job.company} role={job.title} />
           <LevelsFyiCard company={job.company} role={job.title} />
