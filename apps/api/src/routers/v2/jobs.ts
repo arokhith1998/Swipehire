@@ -412,3 +412,93 @@ jobsRouter.post('/api/jobs/:id/apply', async (req: Request, res: Response) => {
 
   res.json({ ok: true });
 });
+
+/**
+ * POST /api/jobs/:id/parse-jd — extract structured fields (skills, salary band,
+ * visa sponsorship, seniority, work mode, ...) from the JD text via OpenAI.
+ * Result is cached in-process for 24h per (jobId, descriptionHash).
+ */
+jobsRouter.post('/api/jobs/:id/parse-jd', async (req: Request, res: Response) => {
+  const userId = authedUserId(req);
+  if (!userId) return res.status(401).json({ error: 'not_authenticated' });
+  const jobId = parseInt(req.params.id, 10);
+  if (Number.isNaN(jobId)) return res.status(400).json({ error: 'invalid_job_id' });
+
+  const r = await db.execute(sql`SELECT id, title, company, description FROM jobs WHERE id = ${jobId} LIMIT 1`);
+  const job = r.rows[0] as any;
+  if (!job) return res.status(404).json({ error: 'job_not_found' });
+  if (!job.description || job.description.length < 50) return res.status(422).json({ error: 'jd_too_short' });
+
+  try {
+    const { parseJD } = await import('../../services/jdParser.js');
+    const parsed = await parseJD({ jobId: job.id, title: job.title, company: job.company, description: job.description });
+    res.json(parsed);
+  } catch (err: any) {
+    if (err.message === 'OPENAI_API_KEY not configured') return res.status(503).json({ error: 'openai_not_configured' });
+    res.status(500).json({ error: 'parse_failed', message: err.message?.slice(0, 200) });
+  }
+});
+
+/**
+ * POST /api/jobs/:id/explain — natural-language 'Why apply / What to watch'
+ * card for THIS user + THIS job. Wraps the existing matcher output with a
+ * gpt-4o-mini summarisation that's grounded in the user's profile, job
+ * record, and per-subscore evidence. Cached for 30 min per (jobId, userId,
+ * match label, 5%-bucketed score).
+ */
+jobsRouter.post('/api/jobs/:id/explain', async (req: Request, res: Response) => {
+  const userId = authedUserId(req);
+  if (!userId) return res.status(401).json({ error: 'not_authenticated' });
+  const jobId = parseInt(req.params.id, 10);
+  if (Number.isNaN(jobId)) return res.status(400).json({ error: 'invalid_job_id' });
+
+  const user = await loadScoringUser(userId);
+  if (!user) return res.status(401).json({ error: 'user_not_found' });
+
+  const r = await db.execute(sql`
+    SELECT id, title, company, location, description, requirements, salary_min, salary_max,
+           is_remote, is_hybrid, sponsors_visa, type, external_url, created_at
+    FROM jobs WHERE id = ${jobId} LIMIT 1
+  `);
+  const row = r.rows[0] as any;
+  if (!row) return res.status(404).json({ error: 'job_not_found' });
+
+  const job = rowToScoringJob(row);
+  const match = await scoreJobForUser(user, job, { skipAuthenticity: true });
+
+  // Pull the user's profile for the explainer's context block.
+  const profileR = await db.execute(sql`
+    SELECT target_job_title, preferred_location, remote_preference, visa_status,
+           experience, expected_salary, skills
+    FROM users WHERE id = ${userId} LIMIT 1
+  `);
+  const profile = profileR.rows[0] as any;
+
+  try {
+    const { explainMatch } = await import('../../services/matchExplainer.js');
+    const result = await explainMatch({
+      jobId,
+      userId,
+      job: {
+        title: job.title, company: job.company, location: job.location,
+        isRemote: job.isRemote ?? null, isHybrid: job.isHybrid ?? null,
+        salaryMin: job.salaryMin ?? null, salaryMax: job.salaryMax ?? null,
+        sponsorsVisa: job.sponsorsVisa ?? null, description: job.description ?? '',
+      },
+      user: {
+        targetJobTitle: profile?.target_job_title ?? null,
+        preferredLocation: profile?.preferred_location ?? null,
+        remotePreference: profile?.remote_preference ?? null,
+        visaStatus: profile?.visa_status ?? null,
+        experience: profile?.experience ?? null,
+        expectedSalary: profile?.expected_salary ?? null,
+        skills: Array.isArray(profile?.skills) ? profile.skills : [],
+      },
+      match,
+    });
+    res.json(result);
+  } catch (err: any) {
+    if (err.message === 'OPENAI_API_KEY not configured') return res.status(503).json({ error: 'openai_not_configured' });
+    res.status(500).json({ error: 'explain_failed', message: err.message?.slice(0, 200) });
+  }
+});
