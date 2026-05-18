@@ -77,7 +77,7 @@ export function MyResumes() {
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-teal-600 hover:bg-teal-700 text-white">
+              <Button className="bg-primary text-primary-foreground hover:opacity-90">
                 <Upload className="w-4 h-4 mr-1" /> Add resume
               </Button>
             </DialogTrigger>
@@ -209,14 +209,14 @@ function AddResumeDialog({ onClose }: { onClose: () => void }) {
               type="file"
               accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
               onChange={e => setFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/15"
             />
             {file && <div className="text-xs text-gray-500">{file.name} · {(file.size / 1024).toFixed(1)} KB</div>}
             <Button
               type="button"
               onClick={() => upload.mutate("file")}
               disabled={!file || upload.isPending}
-              className="bg-teal-600 hover:bg-teal-700 text-white w-full"
+              className="bg-primary text-primary-foreground hover:opacity-90 w-full"
             >
               {upload.isPending ? "Uploading…" : "Add resume"}
             </Button>
@@ -235,7 +235,7 @@ function AddResumeDialog({ onClose }: { onClose: () => void }) {
               type="button"
               onClick={() => upload.mutate("paste")}
               disabled={text.trim().length < 50 || !label.trim() || upload.isPending}
-              className="bg-teal-600 hover:bg-teal-700 text-white w-full"
+              className="bg-primary text-primary-foreground hover:opacity-90 w-full"
             >
               {upload.isPending ? "Saving…" : "Add resume"}
             </Button>

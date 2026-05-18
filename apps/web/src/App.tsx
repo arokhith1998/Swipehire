@@ -92,7 +92,7 @@ function RecruiterRoute({ children }: { children: React.ReactNode }) {
           </p>
           <button
             onClick={() => window.location.href = '/'}
-            className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg font-medium"
+            className="bg-primary text-primary-foreground hover:opacity-90 px-6 py-2 rounded-lg font-medium"
           >
             Return to Jobs
           </button>

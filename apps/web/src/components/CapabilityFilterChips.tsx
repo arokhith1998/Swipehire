@@ -30,7 +30,7 @@ export function CapabilityFilterChips(props: Props) {
       <button
         onClick={() => props.onCapabilityChange('apply_ready')}
         className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-          props.capability === 'apply_ready' ? 'bg-teal-600 text-white' : 'bg-teal-50 text-teal-800 hover:bg-teal-100'
+          props.capability === 'apply_ready' ? 'bg-primary text-white' : 'bg-primary/10 text-primary hover:bg-primary/15'
         }`}
         style={props.capability === 'apply_ready' ? { backgroundColor: '#00ABA8' } : undefined}
       >

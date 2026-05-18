@@ -187,7 +187,7 @@ export default function Profile() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-muted/40 flex items-center justify-center">
         <div className="text-center">
           <SwipeHireLogo size="lg" className="mx-auto mb-4" />
           <p className="text-gray-600">Loading your profile...</p>
@@ -198,13 +198,13 @@ export default function Profile() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-muted/40 flex items-center justify-center">
         <div className="text-center">
           <SwipeHireLogo size="lg" className="mx-auto mb-4" />
           <p className="text-gray-600">Please log in to access your profile</p>
           <button 
             onClick={() => navigate("/login")}
-            className="mt-4 px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+            className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
           >
             Go to Login
           </button>
@@ -214,7 +214,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 pb-20 md:pb-0">
+    <div className="min-h-screen bg-muted/40 pb-20 md:pb-0">
       <TopNavigation />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="text-center mb-8 md:hidden">
@@ -473,7 +473,7 @@ export default function Profile() {
                           <Badge
                             key={skill}
                             variant="outline"
-                            className="cursor-pointer hover:bg-teal-50"
+                            className="cursor-pointer hover:bg-primary/5"
                             onClick={() => addSuggestedSkill(skill)}
                           >
                             {skill}
@@ -525,7 +525,7 @@ export default function Profile() {
                   <Button
                     type="submit"
                     disabled={createProfileMutation.isPending || isCreating}
-                    className="bg-teal-600 hover:bg-teal-700 text-white px-12 py-3 text-lg"
+                    className="bg-primary text-primary-foreground hover:opacity-90 px-12 py-3 text-lg"
                   >
                     {createProfileMutation.isPending || isCreating ? "Creating Profile..." : "Complete Profile"}
                   </Button>
