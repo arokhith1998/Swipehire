@@ -163,7 +163,7 @@ export default function RecruiterJobPost() {
 
   if (companiesLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-muted/40 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading companies...</p>
@@ -173,7 +173,7 @@ export default function RecruiterJobPost() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 py-8">
+    <div className="min-h-screen bg-muted/40 py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="flex items-center mb-8">
@@ -196,7 +196,7 @@ export default function RecruiterJobPost() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Building className="h-5 w-5 mr-2 text-teal-600" />
+                <Building className="h-5 w-5 mr-2 text-primary" />
                 Basic Information
               </CardTitle>
             </CardHeader>
@@ -547,7 +547,7 @@ export default function RecruiterJobPost() {
             <Button
               type="submit"
               disabled={postJobMutation.isPending}
-              className="bg-teal-600 hover:bg-teal-700"
+              className="bg-primary text-primary-foreground hover:opacity-90"
             >
               {postJobMutation.isPending ? 'Posting...' : 'Post Job'}
             </Button>

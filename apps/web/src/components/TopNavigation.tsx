@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Layers, Heart, BarChart3, User, LogOut } from "lucide-react";
 import { SwipeHireLogo } from "./SwipeHireLogo";
+import { ThemeToggle } from "./ThemeProvider";
 import { apiFetch } from "@/lib/api";
 
 interface TopNavigationProps {
@@ -48,16 +49,17 @@ export function TopNavigation({ user }: TopNavigationProps) {
             );
           })}
         </div>
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {user && (
-            <span className="text-sm text-gray-600 hidden lg:inline">
+            <span className="text-sm text-muted-foreground hidden lg:inline mr-1">
               {user.firstName ?? user.email}
             </span>
           )}
+          <ThemeToggle />
           <button
             type="button"
             onClick={logout}
-            className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <LogOut className="w-4 h-4" />
             <span className="hidden lg:inline">Sign out</span>

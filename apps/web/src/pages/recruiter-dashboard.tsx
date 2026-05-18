@@ -46,7 +46,7 @@ export default function RecruiterDashboard() {
 
   if (jobsLoading || shortlistsLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-muted/40 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading recruiter dashboard...</p>
@@ -56,7 +56,7 @@ export default function RecruiterDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 py-8">
+    <div className="min-h-screen bg-muted/40 py-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -66,7 +66,7 @@ export default function RecruiterDashboard() {
           </div>
           <div className="flex space-x-4">
             <Link href="/recruiter/jobs/new">
-              <Button className="bg-teal-600 hover:bg-teal-700">
+              <Button className="bg-primary text-primary-foreground hover:opacity-90">
                 <Plus className="h-4 w-4 mr-2" />
                 Post New Job
               </Button>
@@ -85,10 +85,10 @@ export default function RecruiterDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
-              <Briefcase className="h-4 w-4 text-teal-600" />
+              <Briefcase className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-teal-600">{stats.activeJobs}</div>
+              <div className="text-2xl font-bold text-primary">{stats.activeJobs}</div>
               <p className="text-xs text-gray-500">of {stats.totalJobs} total</p>
             </CardContent>
           </Card>
@@ -133,7 +133,7 @@ export default function RecruiterDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Briefcase className="h-5 w-5 mr-2 text-teal-600" />
+                <Briefcase className="h-5 w-5 mr-2 text-primary" />
                 Your Job Postings
               </CardTitle>
             </CardHeader>
@@ -144,7 +144,7 @@ export default function RecruiterDashboard() {
                     <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500 mb-4">No job postings yet</p>
                     <Link href="/recruiter/jobs/new">
-                      <Button className="bg-teal-600 hover:bg-teal-700">
+                      <Button className="bg-primary text-primary-foreground hover:opacity-90">
                         <Plus className="h-4 w-4 mr-2" />
                         Post Your First Job
                       </Button>
@@ -216,8 +216,8 @@ export default function RecruiterDashboard() {
                   candidateShortlists.slice(0, 5).map((shortlist: any) => (
                     <div key={shortlist.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
-                          <Users className="h-5 w-5 text-teal-600" />
+                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                          <Users className="h-5 w-5 text-primary" />
                         </div>
                         <div className="flex-1">
                           <h4 className="font-semibold text-gray-900">Candidate #{shortlist.candidateId}</h4>

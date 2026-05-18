@@ -130,7 +130,7 @@ export default function RecruiterCandidates() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 py-8">
+    <div className="min-h-screen bg-muted/40 py-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="flex items-center mb-8">
@@ -152,7 +152,7 @@ export default function RecruiterCandidates() {
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Search className="h-5 w-5 mr-2 text-teal-600" />
+              <Search className="h-5 w-5 mr-2 text-primary" />
               Search Candidates
             </CardTitle>
           </CardHeader>
@@ -222,7 +222,7 @@ export default function RecruiterCandidates() {
               </div>
             </div>
             
-            <Button onClick={handleSearch} className="bg-teal-600 hover:bg-teal-700">
+            <Button onClick={handleSearch} className="bg-primary text-primary-foreground hover:opacity-90">
               <Search className="h-4 w-4 mr-2" />
               Search Candidates
             </Button>
@@ -268,8 +268,8 @@ export default function RecruiterCandidates() {
                               className="w-16 h-16 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center">
-                              <User className="h-8 w-8 text-teal-600" />
+                            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                              <User className="h-8 w-8 text-primary" />
                             </div>
                           )}
                         </div>
@@ -336,7 +336,7 @@ export default function RecruiterCandidates() {
                               <Button variant="outline" size="sm">
                                 View Profile
                               </Button>
-                              <Button size="sm" className="bg-teal-600 hover:bg-teal-700">
+                              <Button size="sm" className="bg-primary text-primary-foreground hover:opacity-90">
                                 Contact
                               </Button>
                             </div>

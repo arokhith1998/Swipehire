@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/queryClient";
 import { SwipeHireLogo } from "@/components/SwipeHireLogo";
+import { ThemeToggle } from "@/components/ThemeProvider";
 import { Target, Database, LineChart } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -160,9 +161,10 @@ export default function Login() {
       <header className="border-b border-border/60 bg-background/80 backdrop-blur sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <SwipeHireLogo size="md" />
-          <nav className="flex items-center gap-5 text-sm">
+          <nav className="flex items-center gap-3 sm:gap-5 text-sm">
             <a href="/honesty" className="text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Honesty</a>
             <a href="#auth" className="text-muted-foreground hover:text-foreground transition-colors">Sign in</a>
+            <ThemeToggle />
             <a href="#auth" className="inline-flex items-center h-9 px-3.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
               Get started
             </a>
