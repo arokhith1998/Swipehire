@@ -103,8 +103,15 @@ PACK THE PAGE. A blank lower third is worse than a tight, dense one — recruite
 
 DATE FORMAT (mandatory):
   • Use an en-dash with spaces and 3-letter month + 4-digit year: "Sep 2024 – Present", "Oct 2022 – Jul 2023".
-  • NEVER write "to" — always the en-dash character "–".
+  • NEVER write "to". Always the en-dash character "–".
   • Education dates: just the graduation month + year: "Dec 2024", "May 2020" (no range needed).
+
+PUNCTUATION (mandatory):
+  • NEVER use em-dashes ("—") anywhere. Em-dashes are banned across the entire output.
+  • For mid-sentence breaks, use a period and start a new sentence, or use a comma. NOT an em-dash.
+  • For ranges (dates, page numbers, score ranges), use the en-dash "–".
+  • For compound modifiers, use a hyphen-minus "-".
+  • For list separators (skills, technologies, contact info), use ", " or " · ".
 
 ═══════════════════════════════════════════════════════════
 OUTPUT
@@ -123,7 +130,7 @@ Output a JSON object with this shape (no markdown, no prose around it):
   "certifications": ["..."]
 }`;
 
-const COVER_LETTER_SYSTEM = `You generate one-page cover letters. Output STRICT JSON in this exact shape:
+const COVER_LETTER_SYSTEM = `You generate one-page cover letters. NEVER use em-dashes ("—") in any output — use a comma or period instead. Output STRICT JSON in this exact shape:
 {
   "candidateName": "Jane Doe",
   "contact": { "location": "...", "phone": "...", "email": "...", "linkedin": "...", "portfolio": "..." },
@@ -276,8 +283,30 @@ Education (profile field): ${ctx.user.education ?? ''}`;
     return s
       .replace(/\s+to\s+/gi, ' – ')         // "Sep 2024 to Present" → "Sep 2024 – Present"
       .replace(/\s+-\s+/g, ' – ')           // " - " → " – "
-      .replace(/\s+–+\s+/g, ' – ');         // collapse "—" or double en-dash
+      .replace(/\s+–+\s+/g, ' – ');         // collapse double en-dash
   };
+
+  // Em-dash purge: user-mandated. gpt-4o loves em-dashes. Strip them from EVERY
+  // string in the output and replace with sentence-friendly punctuation.
+  // Walk the parsed object recursively and clean every string leaf.
+  function stripEmDashes(s: string): string {
+    return s
+      .replace(/\s*—\s*/g, ', ')            // em-dash → comma+space (sentence break)
+      .replace(/, ,/g, ',')                 // collapse accidental ", ,"
+      .replace(/,\s*\.\s*/g, '. ')          // ", ." → ". "
+      .replace(/\s+,/g, ',');               // " ," → ","
+  }
+  function cleanStrings<T>(node: T): T {
+    if (typeof node === 'string') return stripEmDashes(node) as unknown as T;
+    if (Array.isArray(node)) return node.map(cleanStrings) as unknown as T;
+    if (node && typeof node === 'object') {
+      const out: any = {};
+      for (const [k, v] of Object.entries(node)) out[k] = cleanStrings(v);
+      return out;
+    }
+    return node;
+  }
+  parsed = cleanStrings(parsed);
 
   const cv: GeneratedCV = {
     name: parsed.name || fullName,
@@ -335,6 +364,23 @@ Location: ${ctx.user.location ?? ''}`;
   let parsed: any;
   try { parsed = JSON.parse(raw); }
   catch { throw new Error('openai returned non-JSON: ' + raw.slice(0, 200)); }
+
+  // Strip em-dashes from EVERY string in the cover-letter spec, including
+  // bodyHtml. Same rule as CV: em-dashes are banned user-wide.
+  function stripEm(s: string): string {
+    return s.replace(/\s*—\s*/g, ', ').replace(/, ,/g, ',').replace(/\s+,/g, ',');
+  }
+  function deepClean<T>(node: T): T {
+    if (typeof node === 'string') return stripEm(node) as unknown as T;
+    if (Array.isArray(node)) return node.map(deepClean) as unknown as T;
+    if (node && typeof node === 'object') {
+      const out: any = {};
+      for (const [k, v] of Object.entries(node)) out[k] = deepClean(v);
+      return out;
+    }
+    return node;
+  }
+  parsed = deepClean(parsed);
 
   const fullName = `${ctx.user.firstName} ${ctx.user.lastName}`.trim();
 

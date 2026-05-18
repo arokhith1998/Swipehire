@@ -47,7 +47,7 @@ export default function Dashboard() {
     onSuccess: (_data, vars) => {
       toast({
         title: 'Logged',
-        description: `Outcome "${vars.outcome.replace('_', ' ')}" recorded — feeds the calibration model.`,
+        description: `Outcome "${vars.outcome.replace('_', ' ')}" recorded; feeds the calibration model.`,
       });
       qc.invalidateQueries({ queryKey: ['/api/applications'] });
       qc.invalidateQueries({ queryKey: ['/api/honesty'] });
@@ -119,7 +119,7 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="text-base">Active applications</CardTitle>
             <p className="text-sm text-gray-500">
-              When you hear back, log the outcome — your data trains the match scoring model.
+              When you hear back, log the outcome; your data trains the match scoring model.
             </p>
           </CardHeader>
           <CardContent>

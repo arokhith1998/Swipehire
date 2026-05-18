@@ -148,7 +148,7 @@ export function GenerateDocsButton({ jobId, jobTitle, companyName }: Props) {
           </div>
         )}
 
-        <p className="text-xs text-gray-500">PDF takes ~5-10 sec the first time (OpenAI). DOCX is added in parallel — both files download to your browser automatically.</p>
+        <p className="text-xs text-gray-500">PDF takes ~5-10 sec the first time (OpenAI). DOCX is added in parallel; both files download to your browser automatically.</p>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>Close</Button>

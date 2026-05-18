@@ -71,7 +71,7 @@ export default function HonestyDashboard() {
           Closer to 1:1 = honest. Below = we're under-predicting; above = over-promising (the Jobright trap).
         </p>
         {data.calibration.length === 0 ? (
-          <EmptyMetric note="Not enough labeled outcomes yet — calibration begins after first 100 confirmed interviews." />
+          <EmptyMetric note="Not enough labeled outcomes yet; calibration begins after first 100 confirmed interviews." />
         ) : (
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -151,7 +151,7 @@ export default function HonestyDashboard() {
       <section>
         <h2 className="text-xl font-semibold mb-3">Cancellation</h2>
         <Big
-          value={`${data.cancellation.medianTimeToCancelMs ?? '—'} ms`}
+          value={`${data.cancellation.medianTimeToCancelMs ?? '–'} ms`}
           label="Median time from cancel-click to confirmation. No email required."
           target="≤ 1000 ms, no email"
         />

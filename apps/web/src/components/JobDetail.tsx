@@ -156,7 +156,7 @@ export function JobDetail({ job, onBack }: Props) {
                     variant="outline"
                     className="border-dashed text-gray-400 cursor-not-allowed"
                     disabled
-                    title="Coming soon — auto-submit via Greenhouse / Lever / Ashby APIs"
+                    title="Coming soon: auto-submit via Greenhouse / Lever / Ashby APIs"
                   >
                     <Sparkles className="w-4 h-4 mr-1.5" />
                     Apply via SwipeHire
@@ -190,7 +190,7 @@ export function JobDetail({ job, onBack }: Props) {
                     variant="outline"
                     className="border-dashed text-gray-400 cursor-not-allowed"
                     disabled
-                    title="Coming soon — Chrome extension auto-fills any career page"
+                    title="Coming soon: Chrome extension auto-fills any career page"
                   >
                     <Chrome className="w-4 h-4 mr-1.5" />
                     Apply with extension
@@ -313,7 +313,7 @@ export function JobDetail({ job, onBack }: Props) {
 }
 
 function fmtSalary(n: number | null | undefined): string {
-  if (n == null) return "—";
+  if (n == null) return "–";
   if (n >= 1000) return `$${(n / 1000).toFixed(0)}K`;
   return `$${n}`;
 }
@@ -324,7 +324,7 @@ function VisaIntelCard({ intel, role, company }: { intel: any; role: string; com
   const yearTotals: Array<{ year: number; totalLcas: number; certified: number }> = intel.yearTotals ?? [];
   const lcas2025 = yearTotals.find(y => y.year === 2025);
   const certRatePct = intel.certificationRate24mo != null
-    ? `${Math.round(intel.certificationRate24mo * 100)}%` : "—";
+    ? `${Math.round(intel.certificationRate24mo * 100)}%` : "–";
 
   return (
     <Card>
@@ -356,7 +356,7 @@ function VisaIntelCard({ intel, role, company }: { intel: any; role: string; com
               <div className="font-semibold text-gray-900 text-base">
                 {intel.stats24mo.medianWageOffered
                   ? `$${Math.round(intel.stats24mo.medianWageOffered / 1000)}K`
-                  : "—"}
+                  : "–"}
               </div>
             </div>
           </div>
@@ -379,7 +379,7 @@ function VisaIntelCard({ intel, role, company }: { intel: any; role: string; com
                   <span className="font-medium text-gray-900">
                     {roleSpecific.totalLcas24mo > 0
                       ? `${Math.round((roleSpecific.certified / roleSpecific.totalLcas24mo) * 100)}%`
-                      : "—"}
+                      : "–"}
                   </span>
                 </div>
                 {roleSpecific.medianWageOffered && (
@@ -399,7 +399,7 @@ function VisaIntelCard({ intel, role, company }: { intel: any; role: string; com
               <p className="text-sm text-gray-600">
                 No record of {company} sponsoring an H-1B in this exact SOC code in the last 24 months.
                 {has24mo && (
-                  <span className="text-gray-500"> They have filed under other SOCs — see company numbers above.</span>
+                  <span className="text-gray-500"> They have filed under other SOCs; see company numbers above.</span>
                 )}
               </p>
             )}
@@ -421,7 +421,7 @@ function VisaIntelCard({ intel, role, company }: { intel: any; role: string; com
 }
 
 function fmtDate(s: string | null | undefined): string {
-  if (!s) return "—";
+  if (!s) return "–";
   const d = new Date(s);
   const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
   if (days === 0) return "today";
@@ -730,7 +730,7 @@ function LevelsFyiCard({ company, role }: { company: string; role: string }) {
           <div className="mb-3 rounded-lg overflow-hidden border border-gray-200" style={{ height: 500 }}>
             <iframe
               src={salaryEmbed}
-              title={`Levels.fyi salaries — ${company}`}
+              title={`Levels.fyi salaries: ${company}`}
               loading="lazy"
               className="w-full h-full"
               style={{ border: 'none' }}
@@ -751,7 +751,7 @@ function LevelsFyiCard({ company, role }: { company: string; role: string }) {
             <div className="mt-2 rounded-lg overflow-hidden border border-gray-200" style={{ height: 600 }}>
               <iframe
                 src={levelEmbed}
-                title={`Levels.fyi leveling — ${company}`}
+                title={`Levels.fyi leveling: ${company}`}
                 loading="lazy"
                 className="w-full h-full"
                 style={{ border: 'none' }}
@@ -843,13 +843,13 @@ function CompanyFinancialsCard({ company }: { company: string }) {
   if (!data?.found) return null;
 
   const fmtMoney = (n: number | null | undefined): string => {
-    if (n == null) return '—';
+    if (n == null) return '–';
     if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
     if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
     return `$${n.toLocaleString()}`;
   };
   const fmtPct = (n: number | null | undefined): string => {
-    if (n == null) return '—';
+    if (n == null) return '–';
     return `${(n * 100).toFixed(1)}%`;
   };
 

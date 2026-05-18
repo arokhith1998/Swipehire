@@ -72,7 +72,7 @@ export function MyResumes() {
               My resumes
             </CardTitle>
             <CardDescription className="mt-1">
-              Add as many as you want. The starred one is your primary — generated cover letters and tailored CVs use it as the base, and pull skills/projects from the others.
+              Add as many as you want. The starred one is your primary; generated cover letters and tailored CVs use it as the base, and pull skills/projects from the others.
             </CardDescription>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
@@ -190,7 +190,7 @@ function AddResumeDialog({ onClose }: { onClose: () => void }) {
           <Label htmlFor="resume-label">Label (so you can tell them apart)</Label>
           <Input
             id="resume-label"
-            placeholder='e.g. "MLE — RAG focus" or "Marketing Analyst"'
+            placeholder='e.g. "MLE: RAG focus" or "Marketing Analyst"'
             value={label}
             onChange={e => setLabel(e.target.value)}
             maxLength={80}
