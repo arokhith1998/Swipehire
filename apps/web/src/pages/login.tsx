@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/queryClient";
 import { SwipeHireLogo } from "@/components/SwipeHireLogo";
+import { Target, Database, LineChart } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 
@@ -154,130 +155,115 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-teal-50/40 to-blue-50/40">
-      {/* Hero / marketing */}
-      <header className="px-4 sm:px-6 py-4 sm:py-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Top bar */}
+      <header className="border-b border-border/60 bg-background/80 backdrop-blur sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <SwipeHireLogo size="md" />
-          <a href="#auth" className="text-sm font-medium text-gray-700 hover:text-primary">Sign in</a>
+          <nav className="flex items-center gap-5 text-sm">
+            <a href="/honesty" className="text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Honesty</a>
+            <a href="#auth" className="text-muted-foreground hover:text-foreground transition-colors">Sign in</a>
+            <a href="#auth" className="inline-flex items-center h-9 px-3.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
+              Get started
+            </a>
+          </nav>
         </div>
       </header>
 
-      <section className="px-4 sm:px-6 pt-8 sm:pt-16 pb-8">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <div className="inline-block bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full mb-4">
-              Built for international candidates
-            </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-4">
-              Job matches that <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">don't lie</span> to you.
-            </h1>
-            <p className="text-lg text-gray-600 leading-relaxed mb-6">
-              Calibrated probability scores, real visa sponsorship data, and live company intel.
-              No inflated "95% match" theatre. Built for STEM-OPT, H-1B, and anyone who's tired
-              of LinkedIn's noise.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <a href="#auth" className="inline-flex items-center px-5 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors">
-                Try it free →
-              </a>
-              <a href="/honesty" className="inline-flex items-center px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-white transition-colors">
-                Honesty dashboard
-              </a>
-            </div>
+      {/* Hero — type-led, minimal, no cartoons */}
+      <section className="px-4 sm:px-6 pt-20 sm:pt-28 pb-16 sm:pb-24 border-b border-border/60">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 mb-5 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+            <span className="h-px w-6 bg-primary/50" />
+            AI hiring infrastructure for global talent
+            <span className="h-px w-6 bg-primary/50" />
           </div>
+          <h1 className="text-display text-5xl sm:text-6xl lg:text-7xl leading-[1.05] text-foreground">
+            Job matches you can{' '}
+            <span className="text-primary">actually trust</span>.
+          </h1>
+          <p className="mt-6 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+            Calibrated probability scores, real H-1B sponsorship data from DOL OFLC,
+            and live ATS feeds from 80+ companies. No inflated &ldquo;95% match&rdquo; theatre.
+            Built for international candidates navigating STEM-OPT and H-1B.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3 justify-center">
+            <a href="#auth" className="inline-flex items-center h-11 px-5 rounded-md bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity">
+              Get started free
+              <span className="ml-2">→</span>
+            </a>
+            <a href="/honesty" className="inline-flex items-center h-11 px-5 rounded-md border border-border text-foreground font-medium hover:bg-muted transition-colors">
+              See the Honesty Dashboard
+            </a>
+          </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-3xl font-bold text-primary">87%</div>
-              <div className="text-sm font-medium text-gray-900 mt-1">Strong fit</div>
-              <div className="text-xs text-gray-500 mt-0.5">90% CI: 81–93%</div>
-              <div className="mt-3 space-y-1.5">
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="bg-green-500 h-full rounded-full" style={{ width: "92%" }} />
-                </div>
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="bg-blue-500 h-full rounded-full" style={{ width: "78%" }} />
-                </div>
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="bg-blue-500 h-full rounded-full" style={{ width: "65%" }} />
-                </div>
-              </div>
+        {/* Stat strip — replaces the cartoon cards. Real numbers, not fake demo cards. */}
+        <div className="mt-16 max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden border border-border">
+          {[
+            { v: '4.8M', k: 'DOL LCA records analysed' },
+            { v: '80+',  k: 'Companies, live ATS feed' },
+            { v: '90%',  k: 'Confidence intervals on every score' },
+            { v: '$0',   k: 'During beta — no card required' },
+          ].map((s) => (
+            <div key={s.k} className="bg-background px-5 py-6 text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{s.v}</div>
+              <div className="mt-1 text-xs sm:text-sm text-muted-foreground">{s.k}</div>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Visa intel</div>
-              <div className="text-base font-bold text-gray-900 mt-1">Stripe</div>
-              <div className="text-xs text-gray-500 mt-1">From DOL OFLC LCA records</div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-gray-50 rounded p-2">
-                  <div className="text-gray-500">LCAs (24mo)</div>
-                  <div className="font-bold text-gray-900">142</div>
-                </div>
-                <div className="bg-gray-50 rounded p-2">
-                  <div className="text-gray-500">Approved</div>
-                  <div className="font-bold text-gray-900">94%</div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 col-span-2">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Why apply</div>
-              <ul className="space-y-1.5 text-sm">
-                <li className="flex items-start gap-1.5"><span className="text-green-600 mt-0.5">✓</span><span className="text-gray-700">Matched 8/10 JD skills: Python, AWS, PostgreSQL...</span></li>
-                <li className="flex items-start gap-1.5"><span className="text-green-600 mt-0.5">✓</span><span className="text-gray-700">Job is hybrid in SF Bay Area; user prefers hybrid</span></li>
-                <li className="flex items-start gap-1.5"><span className="text-yellow-600 mt-0.5">⚠</span><span className="text-gray-700">Salary band lower than expected ($165k vs $180k)</span></li>
-              </ul>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* What we do differently */}
-      <section className="px-4 sm:px-6 py-10 bg-white border-y border-gray-100">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Three things every other tool gets wrong</h2>
-          <p className="text-center text-gray-600 mb-8">And what we're doing differently.</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <div className="text-3xl mb-2">🎯</div>
-              <h3 className="font-semibold text-gray-900 mb-1">Calibrated, not inflated</h3>
-              <p className="text-sm text-gray-600">
-                Every score is a real probability of getting an interview, with a 90% confidence interval.
-                When we don't have enough data, we say "Insufficient data" — not "95% match".
-              </p>
-            </div>
-            <div>
-              <div className="text-3xl mb-2">🛂</div>
-              <h3 className="font-semibold text-gray-900 mb-1">Visa data that's actually deep</h3>
-              <p className="text-sm text-gray-600">
-                Per-employer LCA filings, certification rates, prevailing wage checks. Direct from DOL OFLC
-                disclosure data — 4.8M records since 2013.
-              </p>
-            </div>
-            <div>
-              <div className="text-3xl mb-2">📋</div>
-              <h3 className="font-semibold text-gray-900 mb-1">Honest about every step</h3>
-              <p className="text-sm text-gray-600">
-                Apply on company sites with one click — and log outcomes back so we can keep our
-                calibration anchored to what actually happened, not what we hope.
-              </p>
-            </div>
+      {/* "How it's different" — proper icons, no emoji */}
+      <section className="px-4 sm:px-6 py-20 sm:py-24 border-b border-border/60">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary mb-3">How we're different</div>
+            <h2 className="text-display text-3xl sm:text-4xl text-foreground">Three things every other tool gets wrong.</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-12">
+            {[
+              {
+                icon: Target,
+                title: 'Calibrated, not inflated',
+                body: 'Every score is a real probability of getting an interview, with a 90% confidence interval. When the data isn\'t there, we say "Insufficient data" instead of forging a 95%.',
+              },
+              {
+                icon: Database,
+                title: 'Visa data that\'s actually deep',
+                body: 'Per-employer LCA filings, certification rates, prevailing wage checks. Direct from DOL OFLC disclosure files. 4.8M records since 2013, refreshed quarterly.',
+              },
+              {
+                icon: LineChart,
+                title: 'Honest about every step',
+                body: 'Apply on company sites in one click, then log outcomes back. Our calibration is anchored to what actually happened, not what we hoped would happen.',
+              },
+            ].map((c) => (
+              <div key={c.title}>
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary mb-4">
+                  <c.icon className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground tracking-tight mb-2">{c.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{c.body}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Auth form */}
-      <section id="auth" className="px-4 py-12">
+      <section id="auth" className="px-4 py-20 sm:py-24 bg-muted/40">
         <div className="w-full max-w-md mx-auto">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Get started</h2>
-            <p className="text-gray-600 text-sm mt-1">Free during beta. No card required.</p>
+          <div className="text-center mb-8">
+            <h2 className="text-display text-3xl text-foreground">Get started</h2>
+            <p className="text-muted-foreground text-sm mt-2">Free during beta. No credit card required.</p>
           </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Get Started</CardTitle>
-            <CardDescription>
-              Sign in to your account or create a new one
+        <Card className="shadow-sm border-border">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Sign in or create your account</CardTitle>
+            <CardDescription className="text-xs">
+              Takes about 30 seconds.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -320,13 +306,13 @@ export default function Login() {
                     />
                     <Button
                       type="submit"
-                      className="w-full bg-teal-600 hover:bg-teal-700"
+                      className="w-full bg-primary text-primary-foreground hover:opacity-90"
                       disabled={loginMutation.isPending}
                     >
-                      {loginMutation.isPending ? "Signing in..." : "Sign In"}
+                      {loginMutation.isPending ? "Signing in..." : "Sign in"}
                     </Button>
                     <div className="text-center text-sm">
-                      <a href="/forgot-password" className="text-teal-600 hover:underline">Forgot your password?</a>
+                      <a href="/forgot-password" className="text-primary hover:underline">Forgot your password?</a>
                     </div>
                   </form>
                 </Form>
@@ -406,12 +392,12 @@ export default function Login() {
                         </FormItem>
                       )}
                     />
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-teal-600 hover:bg-teal-700"
+                    <Button
+                      type="submit"
+                      className="w-full bg-primary text-primary-foreground hover:opacity-90"
                       disabled={registerMutation.isPending}
                     >
-                      {registerMutation.isPending ? "Creating account..." : "Create Account"}
+                      {registerMutation.isPending ? "Creating account..." : "Create account"}
                     </Button>
                   </form>
                 </Form>

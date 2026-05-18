@@ -36,7 +36,7 @@ export default function ForgotPassword() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-teal-50/40 to-blue-50/40">
+    <div className="min-h-screen bg-muted/40">
       <header className="px-4 sm:px-6 py-4 sm:py-6">
         <div className="max-w-6xl mx-auto">
           <a href="/"><SwipeHireLogo size="md" /></a>
@@ -55,7 +55,7 @@ export default function ForgotPassword() {
             </CardHeader>
             <CardContent>
               {submitted ? (
-                <Button className="w-full bg-teal-600 hover:bg-teal-700" onClick={() => (window.location.href = "/login")}>
+                <Button className="w-full bg-primary text-primary-foreground hover:opacity-90" onClick={() => (window.location.href = "/login")}>
                   Back to sign in
                 </Button>
               ) : (
@@ -72,11 +72,11 @@ export default function ForgotPassword() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={mutation.isPending}>
+                    <Button type="submit" className="w-full bg-primary text-primary-foreground hover:opacity-90" disabled={mutation.isPending}>
                       {mutation.isPending ? "Sending…" : "Send reset link"}
                     </Button>
                     <div className="text-center text-sm">
-                      <a href="/login" className="text-teal-600 hover:underline">Back to sign in</a>
+                      <a href="/login" className="text-primary hover:underline">Back to sign in</a>
                     </div>
                   </form>
                 </Form>

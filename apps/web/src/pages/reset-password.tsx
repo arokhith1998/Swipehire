@@ -65,7 +65,7 @@ export default function ResetPassword() {
   });
 
   const Shell = ({ children }: { children: React.ReactNode }) => (
-    <div className="min-h-screen bg-gradient-to-br from-white via-teal-50/40 to-blue-50/40">
+    <div className="min-h-screen bg-muted/40">
       <header className="px-4 sm:px-6 py-4 sm:py-6">
         <div className="max-w-6xl mx-auto">
           <a href="/"><SwipeHireLogo size="md" /></a>
@@ -90,7 +90,7 @@ export default function ResetPassword() {
             <CardDescription>This page expects a reset token in the URL. Request a new email and try the link again.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full bg-teal-600 hover:bg-teal-700" onClick={() => (window.location.href = "/forgot-password")}>
+            <Button className="w-full bg-primary text-primary-foreground hover:opacity-90" onClick={() => (window.location.href = "/forgot-password")}>
               Request a new link
             </Button>
           </CardContent>
@@ -108,7 +108,7 @@ export default function ResetPassword() {
             <CardDescription>You can now sign in with your new password.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full bg-teal-600 hover:bg-teal-700" onClick={() => (window.location.href = "/login")}>
+            <Button className="w-full bg-primary text-primary-foreground hover:opacity-90" onClick={() => (window.location.href = "/login")}>
               Sign in
             </Button>
           </CardContent>
@@ -149,7 +149,7 @@ export default function ResetPassword() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={mutation.isPending}>
+              <Button type="submit" className="w-full bg-primary text-primary-foreground hover:opacity-90" disabled={mutation.isPending}>
                 {mutation.isPending ? "Updating…" : "Update password"}
               </Button>
             </form>
